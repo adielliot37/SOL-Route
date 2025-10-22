@@ -1,0 +1,161 @@
+import { Router } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import Listing from '../models/Listing';
+import Order from '../models/Order';
+import User from '../models/User';
+import KeyVault from '../models/KeyVault';
+import { createPaymentTransaction, submitTransaction } from '../services/solana';
+import { unwrapKeyWithServerKms, sealKeyToBuyer } from '../services/crypto';
+
+const router = Router();
+
+// Check if user already purchased a listing
+router.get('/check/:listingId/:wallet', async (req, res) => {
+  try {
+    const { listingId, wallet } = req.params;
+
+    // Find any delivered order for this listing and wallet
+    const order = await Order.findOne({
+      listingId,
+      buyerWallet: wallet,
+      status: 'DELIVERED'
+    });
+
+    if (!order || !order.sealedKeyB64) {
+      return res.json({ purchased: false });
+    }
+
+    // Get listing info
+    const listing = await Listing.findById(listingId);
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    return res.json({
+      purchased: true,
+      delivery: {
+        sealedKeyB64: order.sealedKeyB64,
+        cid: listing.cid,
+        filename: listing.filename,
+        mime: listing.mime
+      }
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/init', async (req, res) => {
+  try {
+    const { listingId, buyerEncPubKeyB64, buyerWallet } = req.body;
+    const listing = await Listing.findById(listingId);
+    if (!listing) return res.status(404).json({ error: 'listing not found' });
+
+    if (listing.sellerWallet === buyerWallet) {
+      return res.status(400).json({ error: 'Cannot purchase your own listing' });
+    }
+
+    const orderId = uuidv4();
+    const order = await Order.create({
+      listingId,
+      orderId,
+      buyerEncPubKeyB64,
+      buyerWallet,
+      payment: {
+        expectedLamports: listing.priceLamports,
+        toWallet: listing.sellerWallet,
+        memo: orderId
+      }
+    });
+
+    return res.json({
+      orderId,
+      payTo: listing.sellerWallet,
+      lamports: listing.priceLamports,
+      memo: orderId,
+      network: 'solana-devnet'
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/pay-direct', async (req, res) => {
+  try {
+    const { orderId, signedTransaction } = req.body;
+    
+    if (!orderId || !signedTransaction) {
+      return res.status(400).json({ error: 'Missing orderId or signedTransaction' });
+    }
+
+    const order = await Order.findOne({ orderId }).populate('listingId');
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.status === 'PAID' || order.status === 'DELIVERED') {
+      return res.status(400).json({ error: 'Order already processed' });
+    }
+
+    const transactionBuffer = Buffer.from(signedTransaction, 'base64');
+    const signature = await submitTransaction(transactionBuffer);
+
+    order.status = 'PAID';
+    order.payment.txSig = signature;
+    order.payment.confirmedAt = new Date();
+    await order.save();
+
+    let user = await User.findOne({ wallet: order.buyerWallet });
+    if (!user) {
+      user = await User.create({ wallet: order.buyerWallet });
+    }
+    
+    user.purchaseHistory.push({
+      orderId: order._id,
+      listingId: order.listingId._id,
+      purchasedAt: new Date(),
+      filename: order.listingId.filename,
+      pricePaid: order.payment.expectedLamports
+    });
+    await user.save();
+
+    return res.json({
+      success: true,
+      signature,
+      orderId
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/create-transaction', async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    
+    const order = await Order.findOne({ orderId }).populate('listingId');
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.status === 'PAID' || order.status === 'DELIVERED') {
+      return res.status(400).json({ error: 'Order already processed' });
+    }
+
+    const serializedTransaction = await createPaymentTransaction(
+      order.buyerWallet,
+      order.payment.toWallet,
+      order.payment.expectedLamports,
+      order.payment.memo
+    );
+
+    return res.json({
+      transaction: serializedTransaction.toString('base64'),
+      orderId
+    });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+export default router;
