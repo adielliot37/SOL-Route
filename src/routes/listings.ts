@@ -81,7 +81,7 @@ router.get('/:id/file', async (req, res) => {
 
 router.post('/create', async (req, res) => {
   try {
-    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
+    const { sellerId, sellerWallet, filename, name, description, preview, thumbnail, metadata, mime, base64File, priceLamports } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
     }
@@ -102,6 +102,8 @@ router.post('/create', async (req, res) => {
       name,
       description,
       preview,
+      thumbnail,
+      metadata,
       mime,
       size: fileBuf.length,
       priceLamports

@@ -35,6 +35,13 @@ export default function Navbar() {
         {/* Navigation */}
         <nav className="flex items-center gap-6">
           <Link
+            href="/search"
+            className="text-sm font-medium text-purple-300/80 hover:text-purple-300 transition-colors relative group"
+          >
+            <span className="relative z-10">SEARCH</span>
+            <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/10 rounded transition-all -m-2 p-2" />
+          </Link>
+          <Link
             href="/create"
             className="text-sm font-medium text-purple-300/80 hover:text-purple-300 transition-colors relative group"
           >

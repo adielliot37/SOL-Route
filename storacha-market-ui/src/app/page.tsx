@@ -3,6 +3,8 @@
 import useSWR from 'swr'
 import { api } from '@/lib/api'
 import ListingCard from '@/components/listing-card'
+import SearchBar from '@/components/search-bar'
+import Link from 'next/link'
 
 export default function Page() {
   const { data, isLoading } = useSWR('listings', () => api.get('/listings').then(r => r.data))
@@ -42,6 +44,18 @@ export default function Page() {
             Trade encrypted content. Monetize anything. Stay anonymous.<br/>
             <span className="text-purple-500/80">Built onchain. Secured forever.</span>
           </p>
+
+          <div className="mb-12">
+            <SearchBar />
+            <div className="mt-4 text-center">
+              <Link 
+                href="/search" 
+                className="text-sm font-mono text-purple-400/60 hover:text-purple-300 transition-colors"
+              >
+                Advanced Search →
+              </Link>
+            </div>
+          </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
