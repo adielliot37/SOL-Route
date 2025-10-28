@@ -2,18 +2,21 @@
 
 import { Card } from '@/components/ui/card'
 import Link from 'next/link'
+import { getCategoryInfo, getCategoryFromFilename } from '@/lib/categories'
 
 export default function ListingCard({ item }: { item: any }) {
   const priceSOL = (item.priceLamports / 1_000_000_000).toFixed(3)
+  const category = item.category || getCategoryFromFilename(item.filename || '')
+  const categoryInfo = getCategoryInfo(category)
 
   return (
     <Link href={`/listing/${item._id}`}>
       <Card className="group overflow-hidden hover:shadow-xl hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer border-purple-500/20 hover:border-purple-500/40 bg-black/40 backdrop-blur-sm">
         {/* Preview or gradient placeholder */}
         <div className="relative aspect-video bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-purple-900/20 flex items-center justify-center overflow-hidden">
-          {item.preview ? (
+          {item.thumbnail || item.preview ? (
             <>
-              <img src={item.preview} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+              <img src={item.thumbnail || item.preview} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             </>
           ) : (
@@ -25,6 +28,11 @@ export default function ListingCard({ item }: { item: any }) {
             </div>
           )}
 
+          <div className="absolute top-2 left-2 px-2 py-1 bg-black/60 backdrop-blur-md border border-purple-500/30 rounded text-[10px] font-mono text-purple-300 flex items-center gap-1">
+            <span>{categoryInfo.icon}</span>
+            <span>{categoryInfo.label.toUpperCase()}</span>
+          </div>
+          
           {/* Overlay badge */}
           <div className="absolute top-2 right-2 px-2 py-1 bg-purple-500/20 backdrop-blur-md border border-purple-500/30 rounded text-[10px] font-mono text-purple-300">
             ONCHAIN

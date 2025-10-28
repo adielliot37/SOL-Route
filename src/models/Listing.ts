@@ -8,8 +8,15 @@ const ListingSchema = new Schema({
   name: { type: String, required: true },           // Display name
   description: { type: String, required: true },    // Description
   preview: String,                                  // Optional preview URL
+  thumbnail: String,                                // Auto-generated thumbnail (base64)
   mime: String,
   size: Number,
+  metadata: {                                       // File metadata
+    width: Number,
+    height: Number,
+    duration: Number,
+    aspectRatio: String
+  },
   priceLamports: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now }
 });

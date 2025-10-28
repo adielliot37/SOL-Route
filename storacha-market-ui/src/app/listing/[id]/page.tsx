@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js'
+import { formatFileSize, formatDuration } from '@/lib/file-preview'
 
 export default function ListingDetail() {
   const { id } = useParams() as { id: string }
@@ -156,7 +157,8 @@ export default function ListingDetail() {
       const iv = enc.slice(0, 12)
       const tag = enc.slice(12, 28)
       const ciphertext = enc.slice(28)
-      const key = await crypto.subtle.importKey('raw', K, 'AES-GCM', false, ['decrypt'])
+      const keyArray = new Uint8Array(K)
+      const key = await crypto.subtle.importKey('raw', keyArray, 'AES-GCM', false, ['decrypt'])
       const pt = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv, tagLength: 128 },
         key,
@@ -204,8 +206,8 @@ export default function ListingDetail() {
         <div className="lg:col-span-2 space-y-6">
           <Card className="overflow-hidden">
             <div className="aspect-video bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-pink-500/20 flex items-center justify-center">
-              {listing.preview ? (
-                <img src={listing.preview} alt={listing.name} className="w-full h-full object-cover" />
+              {listing.thumbnail || listing.preview ? (
+                <img src={listing.thumbnail || listing.preview} alt={listing.name} className="w-full h-full object-cover" />
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <svg className="w-20 h-20 text-muted-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -230,6 +232,34 @@ export default function ListingDetail() {
                 <span className="text-muted-foreground">Filename:</span>
                 <code className="px-2 py-1 bg-muted rounded text-xs">{listing.filename}</code>
               </div>
+              {listing.size && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Size:</span>
+                  <code className="px-2 py-1 bg-muted rounded text-xs">{formatFileSize(listing.size)}</code>
+                </div>
+              )}
+              {listing.mime && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Type:</span>
+                  <code className="px-2 py-1 bg-muted rounded text-xs">{listing.mime}</code>
+                </div>
+              )}
+              {listing.metadata?.width && listing.metadata?.height && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Dimensions:</span>
+                  <code className="px-2 py-1 bg-muted rounded text-xs">
+                    {listing.metadata.width} × {listing.metadata.height}
+                  </code>
+                </div>
+              )}
+              {listing.metadata?.duration && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Duration:</span>
+                  <code className="px-2 py-1 bg-muted rounded text-xs">
+                    {formatDuration(listing.metadata.duration)}
+                  </code>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Seller:</span>
                 <code className="px-2 py-1 bg-muted rounded text-xs">
