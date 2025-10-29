@@ -10,8 +10,17 @@ const UserSchema = new Schema({
     listingId: { type: Schema.Types.ObjectId, ref: 'Listing' },
     purchasedAt: { type: Date, default: Date.now },
     filename: String,
-    pricePaid: Number
+    pricePaid: Number,
+    reviewed: { type: Boolean, default: false } // Track if buyer reviewed this purchase
   }],
+
+  // Seller rating aggregation (as a seller)
+  sellerRating: {
+    avgRating: { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews: { type: Number, default: 0, min: 0 },
+    totalSales: { type: Number, default: 0, min: 0 }
+  },
+
   createdAt: { type: Date, default: Date.now }
 });
 

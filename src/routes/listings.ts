@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import Listing from '../models/Listing';
-import KeyVault from '../models/KeyVault';
-import Order from '../models/Order';
-import { aesEncryptFile, wrapKeyWithServerKms } from '../services/crypto';
-import { storachaUpload, storachaRetrieve } from '../services/storacha';
+import Listing from '../models/Listing.js';
+import KeyVault from '../models/KeyVault.js';
+import Order from '../models/Order.js';
+import { aesEncryptFile, wrapKeyWithServerKms } from '../services/crypto.js';
+import { storachaUpload, storachaRetrieve } from '../services/storacha.js';
+import { generatePreview } from '../services/preview.js';
 
 const router = Router();
 
@@ -49,10 +50,26 @@ router.get('/seller/:wallet', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    const { includeReviews = 'false' } = req.query;
     const listing = await Listing.findById(req.params.id);
     if (!listing) {
       return res.status(404).json({ error: 'Listing not found' });
     }
+
+    // Optionally include recent reviews
+    if (includeReviews === 'true') {
+      const Review = (await import('../models/Review.js')).default;
+      const recentReviews = await Review.find({ listingId: req.params.id })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+
+      return res.json({
+        ...listing.toObject(),
+        recentReviews
+      });
+    }
+
     return res.json(listing);
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
@@ -87,6 +104,19 @@ router.post('/create', async (req, res) => {
     }
 
     const fileBuf = Buffer.from(base64File, 'base64');
+
+    // Generate preview and extract metadata BEFORE encryption
+    let generatedPreview = preview;
+    let metadata = {};
+    try {
+      const previewResult = await generatePreview(fileBuf, mime, filename);
+      generatedPreview = previewResult.preview;
+      metadata = previewResult.metadata;
+    } catch (previewError: any) {
+      console.warn('Preview generation failed:', previewError.message);
+      // Continue without preview if generation fails
+    }
+
     const { key: aesKey, blob } = aesEncryptFile(fileBuf);
 
     const payload = Buffer.concat([blob.iv, blob.tag, blob.ciphertext]);
@@ -101,16 +131,17 @@ router.post('/create', async (req, res) => {
       filename,
       name,
       description,
-      preview,
+      preview: generatedPreview,
       mime,
       size: fileBuf.length,
-      priceLamports
+      priceLamports,
+      metadata
     });
 
     const wrapped = wrapKeyWithServerKms(aesKey, process.env.SERVER_KEY_HEX!);
     await KeyVault.create({ listingId: listing._id, ...wrapped });
 
-    return res.json({ listingId: listing._id, cid });
+    return res.json({ listingId: listing._id, cid, preview: generatedPreview, metadata });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
   }
