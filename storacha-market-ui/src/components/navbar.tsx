@@ -1,4 +1,3 @@
-// src/components/navbar.tsx
 'use client'
 import { Button } from '@/components/ui/button'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
@@ -12,7 +11,6 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-purple-500/10 bg-black/80 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 h-16 flex items-center justify-between">
-        {/* Logo */}
         <Link href="/" className="group flex items-center gap-3">
           <div className="relative">
             <div className="absolute inset-0 bg-purple-500/20 blur-xl group-hover:bg-purple-500/30 transition-all" />
@@ -32,7 +30,6 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Navigation */}
         <nav className="flex items-center gap-6">
           <Link
             href="/create"
@@ -49,7 +46,6 @@ export default function Navbar() {
             <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/10 rounded transition-all -m-2 p-2" />
           </Link>
 
-          {/* Wallet Connection */}
           {!connected ? (
             <Button
               size="sm"

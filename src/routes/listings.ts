@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import Listing from '../models/Listing.js';
-import KeyVault from '../models/KeyVault.js';
 import Order from '../models/Order.js';
-import { aesEncryptFile, wrapKeyWithServerKms } from '../services/crypto.js';
+import KeyVault from '../models/KeyVault.js';
 import { storachaUpload, storachaRetrieve } from '../services/storacha.js';
+import { aesEncryptFile } from '../services/crypto.js';
+import { wrapKeyWithKms } from '../services/kms.js';
 import { generatePreview } from '../services/preview.js';
 
 const router = Router();
@@ -98,6 +99,7 @@ router.get('/:id/file', async (req, res) => {
 
 router.post('/create', async (req, res) => {
   try {
+    console.log('Creating listing...');
     const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
@@ -138,11 +140,13 @@ router.post('/create', async (req, res) => {
       metadata
     });
 
-    const wrapped = wrapKeyWithServerKms(aesKey, process.env.SERVER_KEY_HEX!);
+    // Use KMS to wrap the encryption key
+    const wrapped = await wrapKeyWithKms(aesKey);
     await KeyVault.create({ listingId: listing._id, ...wrapped });
 
     return res.json({ listingId: listing._id, cid, preview: generatedPreview, metadata });
   } catch (e: any) {
+    console.error('Error creating listing:', e);
     return res.status(500).json({ error: e.message });
   }
 });

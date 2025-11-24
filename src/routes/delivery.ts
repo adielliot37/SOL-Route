@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import Order from '../models/Order';
-import Listing from '../models/Listing';
-import KeyVault from '../models/KeyVault';
-import User from '../models/User';
-import { unwrapKeyWithServerKms, sealKeyToBuyer } from '../services/crypto';
-import { verifyPaymentToWithMemo } from '../services/solana';
+import Order from '../models/Order.js';
+import Listing from '../models/Listing.js';
+import KeyVault from '../models/KeyVault.js';
+import User from '../models/User.js';
+import { sealKeyToBuyer } from '../services/crypto.js';
+import { unwrapKeyWithKms } from '../services/kms.js';
+import { verifyPaymentToWithMemo } from '../services/solana.js';
 
 const router = Router();
 
@@ -15,7 +16,15 @@ router.post('/verify-and-deliver', async (req, res) => {
     if (!order) return res.status(404).json({ error: 'order not found' });
 
     if (order.status === 'DELIVERED') {
-      return res.json({ ok: true, sealedKeyB64: order.sealedKeyB64, cid: (await Listing.findById(order.listingId))?.cid });
+      const listing = await Listing.findById(order.listingId);
+      return res.json({ 
+        ok: true, 
+        sealedKeyB64: order.sealedKeyB64, 
+        ephemeralPubB64: order.ephemeralPubB64,
+        cid: listing?.cid,
+        filename: listing?.filename,
+        mime: listing?.mime
+      });
     }
 
     const listing = await Listing.findById(order.listingId);
@@ -36,15 +45,19 @@ router.post('/verify-and-deliver', async (req, res) => {
     const vault = await KeyVault.findOne({ listingId: listing._id });
     if (!vault) return res.status(500).json({ error: 'key vault missing' });
 
-    const aesKeyRaw = unwrapKeyWithServerKms({
+    // Unwrap the AES key using KMS
+    const aesKeyRaw = await unwrapKeyWithKms({
       encKeyB64: vault.encKeyB64,
       ivB64: vault.ivB64,
-      tagB64: vault.tagB64
-    }, process.env.SERVER_KEY_HEX!);
+      tagB64: vault.tagB64,
+      keyVersion: vault.keyVersion
+    });
 
-    const sealedKeyB64 = await sealKeyToBuyer(aesKeyRaw, order.buyerEncPubKeyB64!);
+    // Seal key to buyer with ephemeral key exchange
+    const sealed = await sealKeyToBuyer(aesKeyRaw, order.buyerEncPubKeyB64!);
 
-    order.sealedKeyB64 = sealedKeyB64;
+    order.sealedKeyB64 = sealed.sealedKeyB64;
+    order.ephemeralPubB64 = sealed.ephemeralPubB64;
     order.status = 'DELIVERED';
     order.deliveredAt = new Date();
     await order.save();
@@ -69,7 +82,14 @@ router.post('/verify-and-deliver', async (req, res) => {
       }
     }
 
-    return res.json({ ok: true, sealedKeyB64, cid: listing.cid, filename: listing.filename, mime: listing.mime });
+    return res.json({ 
+      ok: true, 
+      sealedKeyB64: sealed.sealedKeyB64,
+      ephemeralPubB64: sealed.ephemeralPubB64,
+      cid: listing.cid, 
+      filename: listing.filename, 
+      mime: listing.mime 
+    });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
   }

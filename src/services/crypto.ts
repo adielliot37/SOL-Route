@@ -1,5 +1,7 @@
-import crypto from 'crypto';
-import sodium from 'libsodium-wrappers';
+import * as crypto from 'crypto';
+import _sodium from 'libsodium-wrappers';
+
+let sodium: typeof _sodium;
 
 export type AesGcmBlob = { iv: Buffer; tag: Buffer; ciphertext: Buffer };
 
@@ -39,10 +41,38 @@ export function unwrapKeyWithServerKms(w: {encKeyB64:string, ivB64:string, tagB6
   return raw; // returns original AES content key
 }
 
-// Sealed box: encrypt AES key to buyer's X25519 public key (base64 input)
-export async function sealKeyToBuyer(aesKey: Buffer, buyerX25519PubB64: string): Promise<string> {
-  await sodium.ready;
+// Ephemeral key exchange: encrypt AES key to buyer with forward secrecy
+export async function sealKeyToBuyer(
+  aesKey: Buffer, 
+  buyerX25519PubB64: string
+): Promise<{ sealedKeyB64: string; ephemeralPubB64: string }> {
+  if (!sodium) {
+    sodium = _sodium;
+    await sodium.ready;
+  }
   const buyerPub = Buffer.from(buyerX25519PubB64, 'base64');
-  const sealed = sodium.crypto_box_seal(aesKey, buyerPub);
-  return Buffer.from(sealed).toString('base64');
+  
+  // Generate ephemeral keypair for this encryption
+  const ephemeralKeypair = sodium.crypto_box_keypair();
+  
+  // Generate nonce for authenticated encryption
+  const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
+  
+  // Authenticated encryption with ephemeral key
+  const sealed = sodium.crypto_box_easy(
+    aesKey,
+    nonce,
+    buyerPub,
+    ephemeralKeypair.privateKey
+  );
+  
+  // Combine nonce + ciphertext for transmission
+  const combined = new Uint8Array(nonce.length + sealed.length);
+  combined.set(nonce);
+  combined.set(sealed, nonce.length);
+  
+  return {
+    sealedKeyB64: Buffer.from(combined).toString('base64'),
+    ephemeralPubB64: Buffer.from(ephemeralKeypair.publicKey).toString('base64')
+  };
 }

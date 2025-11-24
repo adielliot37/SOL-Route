@@ -1,4 +1,3 @@
-// src/lib/crypto.ts
 'use client'
 import sodium from 'libsodium-wrappers'
 

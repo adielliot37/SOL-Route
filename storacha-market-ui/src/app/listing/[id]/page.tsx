@@ -2,7 +2,9 @@
 import { api } from '@/lib/api'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { getOrCreateX25519, openSealedKeyB64 } from '@/lib/crypto'
+import { getOrCreateX25519, openSealedKeyB64, hasStoredKeys, refreshKeyExpiry, getTimeUntilExpiry } from '@/lib/cryptoSecure'
+import { obfuscateFilename, detectFileType, formatFileSize } from '@/lib/fileUtils'
+import PasswordDialog from '@/components/PasswordDialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
@@ -18,25 +20,24 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(false)
   const [paymentSending, setPaymentSending] = useState(false)
   const [checkingPurchase, setCheckingPurchase] = useState(false)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [passwordAction, setPasswordAction] = useState<'purchase' | 'decrypt' | null>(null)
+  const [userPassword, setUserPassword] = useState<string | null>(null)
 
   useEffect(() => {
     api.get(`/listings/${id}`).then(r=>setListing(r.data))
   }, [id])
-
-  // Check if user already purchased this listing
   useEffect(() => {
     async function checkExistingPurchase() {
       if (!publicKey || !id) return
 
       setCheckingPurchase(true)
       try {
-        // Check if user has already purchased this listing
         const response = await api.get(`/purchase/check/${id}/${publicKey.toBase58()}`)
         if (response.data.purchased) {
         setDelivery(response.data.delivery)
         }
       } catch (error) {
-        // No existing purchase found
       } finally {
         setCheckingPurchase(false)
       }
@@ -53,17 +54,40 @@ export default function ListingDetail() {
       return
     }
 
+    setPasswordAction('purchase')
+    setShowPasswordDialog(true)
+  }
+
+  async function handlePasswordSubmit(password: string) {
+    setShowPasswordDialog(false)
+    setUserPassword(password)
+    
+    if (passwordAction === 'purchase') {
+      await executePurchase(password)
+    } else if (passwordAction === 'decrypt') {
+      await executeDecrypt(password)
+    }
+  }
+
+  async function executePurchase(password: string) {
     setLoading(true)
     try {
-      const { pubB64 } = await getOrCreateX25519()
+      const { pubB64 } = await getOrCreateX25519(password)
       const r = await api.post('/purchase/init', {
         listingId: id,
         buyerEncPubKeyB64: pubB64,
-        buyerWallet: publicKey.toBase58()
+        buyerWallet: publicKey!.toBase58()
       })
       setOrder(r.data)
-    } catch (error) {
-      alert('Failed to initialize purchase')
+      refreshKeyExpiry()
+    } catch (error: any) {
+      if (error.message?.includes('Invalid password')) {
+        alert('Invalid password. Please try again.')
+        setPasswordAction('purchase')
+        setShowPasswordDialog(true)
+      } else {
+        alert('Failed to initialize purchase')
+      }
     } finally {
       setLoading(false)
     }
@@ -120,9 +144,25 @@ export default function ListingDetail() {
   }
 
   async function decryptAndDownload() {
+    // Check if we need to prompt for password
+    if (!userPassword || getTimeUntilExpiry() === 0) {
+      setPasswordAction('decrypt')
+      setShowPasswordDialog(true)
+      return
+    }
+    
+    await executeDecrypt(userPassword)
+  }
+
+  async function executeDecrypt(password: string) {
     setLoading(true)
     try {
-      const K = await openSealedKeyB64(delivery.sealedKeyB64)
+      const K = await openSealedKeyB64(
+        delivery.sealedKeyB64, 
+        delivery.ephemeralPubB64,
+        password
+      )
+      refreshKeyExpiry()
       const resp = await api.get(`/listings/${id}/file`, { timeout: 120000 })
 
       let base64Blob = resp.data.file || resp.data
@@ -171,7 +211,14 @@ export default function ListingDetail() {
 
       alert('File decrypted and downloaded successfully!')
     } catch (error: any) {
-      alert(`Failed to decrypt and download file: ${error.message}`)
+      if (error.message?.includes('Invalid password')) {
+        alert('Invalid password. Please try again.')
+        setUserPassword(null)
+        setPasswordAction('decrypt')
+        setShowPasswordDialog(true)
+      } else {
+        alert(`Failed to decrypt and download file: ${error.message}`)
+      }
     } finally {
       setLoading(false)
     }
@@ -198,9 +245,18 @@ export default function ListingDetail() {
   const amountSOL = order ? (order.lamports / 1_000_000_000).toFixed(3) : '0'
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-12">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Preview Section */}
+    <>
+      {showPasswordDialog && (
+        <PasswordDialog
+          onSubmit={handlePasswordSubmit}
+          onCancel={() => setShowPasswordDialog(false)}
+          title={hasStoredKeys() ? 'Enter Password' : 'Create Password'}
+          description={hasStoredKeys() ? 'Enter your password to unlock your keys' : 'Create a password to protect your encryption keys'}
+          isCreating={!hasStoredKeys()}
+        />
+      )}
+      <main className="mx-auto max-w-4xl px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <Card className="overflow-hidden">
             <div className="aspect-video bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-pink-500/20 flex items-center justify-center">
@@ -217,7 +273,6 @@ export default function ListingDetail() {
             </div>
           </Card>
 
-          {/* Description */}
           <Card className="p-6">
             <h1 className="text-3xl font-bold mb-4">{listing.name || listing.filename}</h1>
             {listing.description && (
@@ -225,11 +280,30 @@ export default function ListingDetail() {
                 {listing.description}
               </p>
             )}
-            <div className="space-y-2 text-sm">
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">File Type:</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: detectFileType(listing.mime, listing.filename).bgColor }}>
+                  <span className="text-2xl">{detectFileType(listing.mime, listing.filename).icon}</span>
+                  <span className="font-medium" style={{ color: detectFileType(listing.mime, listing.filename).color }}>
+                    {detectFileType(listing.mime, listing.filename).type.toUpperCase()}
+                  </span>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Filename:</span>
-                <code className="px-2 py-1 bg-muted rounded text-xs">{listing.filename}</code>
+                <code className="px-2 py-1 bg-muted rounded text-xs font-mono">
+                  {obfuscateFilename(listing.filename)}
+                </code>
               </div>
+              {listing.size && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Size:</span>
+                  <span className="px-2 py-1 bg-muted rounded text-xs">
+                    {formatFileSize(listing.size)}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Seller:</span>
                 <code className="px-2 py-1 bg-muted rounded text-xs">
@@ -240,10 +314,8 @@ export default function ListingDetail() {
           </Card>
         </div>
 
-        {/* Purchase Section */}
         <div className="space-y-4">
           <Card className="p-6 space-y-6">
-            {/* Price */}
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">Price</p>
               <div className="flex items-baseline gap-2">
@@ -254,7 +326,6 @@ export default function ListingDetail() {
               </div>
             </div>
 
-            {/* Purchase Flow */}
             {!order && !delivery && (
               <>
                 {isOwnListing ? (
@@ -300,7 +371,6 @@ export default function ListingDetail() {
                   </div>
                 </div>
 
-                {/* Pay Now Button */}
                 <Button
                   onClick={sendPaymentWithMemo}
                   disabled={paymentSending}
@@ -317,7 +387,6 @@ export default function ListingDetail() {
                   )}
                 </Button>
 
-                {/* Verify Button */}
                 <Button
                   onClick={verify}
                   disabled={loading}
@@ -358,7 +427,8 @@ export default function ListingDetail() {
             )}
           </Card>
         </div>
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   )
 }

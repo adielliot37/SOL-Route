@@ -9,7 +9,6 @@ export default function ListingCard({ item }: { item: any }) {
   return (
     <Link href={`/listing/${item._id}`}>
       <Card className="group overflow-hidden hover:shadow-xl hover:shadow-purple-500/20 transition-all duration-300 cursor-pointer border-purple-500/20 hover:border-purple-500/40 bg-black/40 backdrop-blur-sm">
-        {/* Preview or gradient placeholder */}
         <div className="relative aspect-video bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-purple-900/20 flex items-center justify-center overflow-hidden">
           {item.preview ? (
             <>
@@ -25,14 +24,12 @@ export default function ListingCard({ item }: { item: any }) {
             </div>
           )}
 
-          {/* Overlay badge */}
           <div className="absolute top-2 right-2 px-2 py-1 bg-purple-500/20 backdrop-blur-md border border-purple-500/30 rounded text-[10px] font-mono text-purple-300">
             ONCHAIN
           </div>
         </div>
 
         <div className="p-4 space-y-3">
-          {/* Title and Description */}
           <div className="space-y-1">
             <h3 className="font-bold text-base text-white group-hover:text-purple-300 transition-colors line-clamp-1">
               {item.name || item.filename || 'UNTITLED'}
@@ -44,7 +41,6 @@ export default function ListingCard({ item }: { item: any }) {
             )}
           </div>
 
-          {/* Price and Action */}
           <div className="flex items-center justify-between pt-2 border-t border-purple-500/10">
             <div className="flex items-baseline gap-1.5">
               <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -57,7 +53,6 @@ export default function ListingCard({ item }: { item: any }) {
             </div>
           </div>
 
-          {/* Metadata */}
           <div className="flex items-center gap-2 text-[10px] text-purple-400/50 font-mono pt-1">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />

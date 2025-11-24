@@ -14,6 +14,7 @@ const OrderSchema = new Schema({
     confirmedAt: Date
   },
   sealedKeyB64: String,       // encrypted-to-buyer AES key (after payment)
+  ephemeralPubB64: String,    // ephemeral public key for forward secrecy
   deliveredAt: Date,
   createdAt: { type: Date, default: Date.now }
 });

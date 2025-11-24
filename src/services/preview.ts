@@ -1,5 +1,4 @@
 import sharp from 'sharp';
-import { createCanvas, loadImage } from 'canvas';
 
 interface PreviewResult {
   preview: string; // base64 encoded thumbnail
@@ -50,16 +49,18 @@ export async function generatePreview(
 }
 
 /**
- * Generate preview for images
+ * Generate preview for images with heavy blur
  */
 async function generateImagePreview(fileBuffer: Buffer): Promise<PreviewResult> {
   const image = sharp(fileBuffer);
   const metadata = await image.metadata();
 
-  // Generate thumbnail (max 400x400, maintain aspect ratio)
+  // Generate heavily blurred thumbnail (max 400x400, maintain aspect ratio)
   const thumbnail = await image
     .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
-    .jpeg({ quality: 80 })
+    .blur(50) // Heavy blur to prevent unauthorized use
+    .modulate({ brightness: 0.8 }) // Slightly darken
+    .jpeg({ quality: 60 }) // Lower quality
     .toBuffer();
 
   return {
@@ -86,35 +87,24 @@ async function generateVideoPreview(
   // - get-video-dimensions to extract dimensions
   // For now, we'll return a placeholder
 
-  const canvas = createCanvas(400, 300);
-  const ctx = canvas.getContext('2d');
+  const svg = `
+    <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="300" fill="url(#grad1)" />
+      <polygon points="150,100 150,200 250,150" fill="rgba(255,255,255,0.9)" />
+      <text x="200" y="250" font-family="Arial" font-size="20" font-weight="bold" fill="white" text-anchor="middle">Video Preview</text>
+    </svg>
+  `;
 
-  // Create a gradient background
-  const gradient = ctx.createLinearGradient(0, 0, 400, 300);
-  gradient.addColorStop(0, '#667eea');
-  gradient.addColorStop(1, '#764ba2');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 400, 300);
-
-  // Add play icon
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-  ctx.beginPath();
-  ctx.moveTo(150, 100);
-  ctx.lineTo(150, 200);
-  ctx.lineTo(250, 150);
-  ctx.closePath();
-  ctx.fill();
-
-  // Add text
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 20px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Video Preview', 200, 250);
-
-  const preview = canvas.toDataURL('image/jpeg');
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       format: mimeType,
       // In production, extract real metadata:
@@ -131,41 +121,31 @@ async function generateVideoPreview(
  * Generate preview for audio files
  */
 async function generateAudioPreview(fileBuffer: Buffer): Promise<PreviewResult> {
-  const canvas = createCanvas(400, 300);
-  const ctx = canvas.getContext('2d');
-
-  // Create background
-  const gradient = ctx.createLinearGradient(0, 0, 400, 300);
-  gradient.addColorStop(0, '#f093fb');
-  gradient.addColorStop(1, '#f5576c');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 400, 300);
-
-  // Draw audio waveform visualization
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  for (let i = 0; i < 400; i += 10) {
+  const waveformBars = Array.from({ length: 40 }, (_, i) => {
     const height = Math.random() * 100 + 50;
-    ctx.moveTo(i, 150 - height / 2);
-    ctx.lineTo(i, 150 + height / 2);
-  }
-  ctx.stroke();
+    const x = i * 10;
+    return `<line x1="${x}" y1="${150 - height / 2}" x2="${x}" y2="${150 + height / 2}" stroke="rgba(255,255,255,0.8)" stroke-width="3" />`;
+  }).join('');
 
-  // Add music note icon
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 60px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('🎵', 200, 80);
+  const svg = `
+    <svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="300" fill="url(#grad2)" />
+      ${waveformBars}
+      <text x="200" y="80" font-family="Arial" font-size="60" font-weight="bold" fill="white" text-anchor="middle">🎵</text>
+      <text x="200" y="250" font-family="Arial" font-size="20" font-weight="bold" fill="white" text-anchor="middle">Audio File</text>
+    </svg>
+  `;
 
-  // Add text
-  ctx.font = 'bold 20px Arial';
-  ctx.fillText('Audio File', 200, 250);
-
-  const preview = canvas.toDataURL('image/jpeg');
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       // In production, use a library like music-metadata to extract:
       // duration: audioMetadata.format.duration,
@@ -179,33 +159,19 @@ async function generateAudioPreview(fileBuffer: Buffer): Promise<PreviewResult> 
  */
 async function generatePdfPreview(fileBuffer: Buffer): Promise<PreviewResult> {
   // In production, use pdf-thumbnail or pdf2pic
-  const canvas = createCanvas(400, 500);
-  const ctx = canvas.getContext('2d');
+  const svg = `
+    <svg width="400" height="500" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="500" fill="white" />
+      <rect x="20" y="20" width="360" height="460" fill="none" stroke="#e0e0e0" stroke-width="2" />
+      <text x="200" y="150" font-family="Arial" font-size="80" font-weight="bold" fill="#d32f2f" text-anchor="middle">📄</text>
+      <text x="200" y="250" font-family="Arial" font-size="24" font-weight="bold" fill="#333" text-anchor="middle">PDF Document</text>
+    </svg>
+  `;
 
-  // White background
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, 400, 500);
-
-  // Add border
-  ctx.strokeStyle = '#e0e0e0';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(20, 20, 360, 460);
-
-  // Add PDF icon
-  ctx.fillStyle = '#d32f2f';
-  ctx.font = 'bold 80px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('📄', 200, 150);
-
-  // Add text
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 24px Arial';
-  ctx.fillText('PDF Document', 200, 250);
-
-  const preview = canvas.toDataURL('image/jpeg');
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       format: 'pdf'
       // In production, extract page count using pdf-parse
@@ -220,29 +186,20 @@ async function generateDocumentPreview(
   filename: string,
   mimeType: string
 ): Promise<PreviewResult> {
-  const canvas = createCanvas(400, 500);
-  const ctx = canvas.getContext('2d');
-
-  // Light background
-  ctx.fillStyle = '#f5f5f5';
-  ctx.fillRect(0, 0, 400, 500);
-
-  // Document icon
-  ctx.fillStyle = '#1976d2';
-  ctx.font = 'bold 80px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('📝', 200, 150);
-
-  // Document type
   const extension = filename.split('.').pop()?.toUpperCase() || 'DOC';
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 24px Arial';
-  ctx.fillText(`${extension} Document`, 200, 250);
+  
+  const svg = `
+    <svg width="400" height="500" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="500" fill="#f5f5f5" />
+      <text x="200" y="150" font-family="Arial" font-size="80" font-weight="bold" fill="#1976d2" text-anchor="middle">📝</text>
+      <text x="200" y="250" font-family="Arial" font-size="24" font-weight="bold" fill="#333" text-anchor="middle">${extension} Document</text>
+    </svg>
+  `;
 
-  const preview = canvas.toDataURL('image/jpeg');
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       format: mimeType
     }
@@ -253,28 +210,29 @@ async function generateDocumentPreview(
  * Generate preview for text files
  */
 async function generateTextPreview(fileBuffer: Buffer): Promise<PreviewResult> {
-  const canvas = createCanvas(400, 500);
-  const ctx = canvas.getContext('2d');
-
-  // White background
-  ctx.fillStyle = 'white';
-  ctx.fillRect(0, 0, 400, 500);
-
   // Show first few lines of text
   const text = fileBuffer.toString('utf-8', 0, 500);
   const lines = text.split('\n').slice(0, 15);
 
-  ctx.fillStyle = '#333';
-  ctx.font = '14px monospace';
-  ctx.textAlign = 'left';
-  lines.forEach((line, i) => {
-    ctx.fillText(line.substring(0, 50), 20, 30 + i * 20);
-  });
+  const textElements = lines.map((line, i) => {
+    const escapedLine = line.substring(0, 50)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<text x="20" y="${30 + i * 20}" font-family="monospace" font-size="14" fill="#333">${escapedLine}</text>`;
+  }).join('');
 
-  const preview = canvas.toDataURL('image/jpeg');
+  const svg = `
+    <svg width="400" height="500" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="500" fill="white" />
+      ${textElements}
+    </svg>
+  `;
+
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       format: 'text'
     }
@@ -288,33 +246,22 @@ async function generateGenericPreview(
   filename: string,
   mimeType: string
 ): Promise<PreviewResult> {
-  const canvas = createCanvas(400, 400);
-  const ctx = canvas.getContext('2d');
-
-  // Gray background
-  ctx.fillStyle = '#9e9e9e';
-  ctx.fillRect(0, 0, 400, 400);
-
-  // File icon
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 100px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('📁', 200, 150);
-
-  // Filename
-  ctx.font = 'bold 18px Arial';
   const displayName = filename.length > 30 ? filename.substring(0, 27) + '...' : filename;
-  ctx.fillText(displayName, 200, 250);
-
-  // File type
   const extension = filename.split('.').pop()?.toUpperCase() || 'FILE';
-  ctx.font = '16px Arial';
-  ctx.fillText(extension, 200, 280);
+  
+  const svg = `
+    <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
+      <rect width="400" height="400" fill="#9e9e9e" />
+      <text x="200" y="150" font-family="Arial" font-size="100" font-weight="bold" fill="white" text-anchor="middle">📁</text>
+      <text x="200" y="250" font-family="Arial" font-size="18" font-weight="bold" fill="white" text-anchor="middle">${displayName}</text>
+      <text x="200" y="280" font-family="Arial" font-size="16" fill="white" text-anchor="middle">${extension}</text>
+    </svg>
+  `;
 
-  const preview = canvas.toDataURL('image/jpeg');
+  const preview = await sharp(Buffer.from(svg)).jpeg({ quality: 80 }).toBuffer();
 
   return {
-    preview,
+    preview: `data:image/jpeg;base64,${preview.toString('base64')}`,
     metadata: {
       format: mimeType || 'unknown'
     }

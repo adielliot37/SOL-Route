@@ -1,4 +1,3 @@
-// src/app/page.tsx
 'use client'
 import useSWR from 'swr'
 import { api } from '@/lib/api'
@@ -9,16 +8,13 @@ export default function Page() {
 
   return (
     <main className="mx-auto max-w-7xl">
-      {/* Hero Section */}
       <div className="relative py-20 md:py-32 px-4">
-        {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-20 left-20 w-72 h-72 bg-purple-600/10 rounded-full blur-3xl animate-pulse" />
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-600/10 rounded-full blur-3xl animate-pulse delay-700" />
         </div>
 
         <div className="relative z-10 max-w-4xl mx-auto text-center">
-          {/* Eyebrow */}
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full mb-8">
             <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
             <span className="text-sm font-mono text-purple-300 tracking-wider">
@@ -26,7 +22,6 @@ export default function Page() {
             </span>
           </div>
 
-          {/* Main Headline */}
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 tracking-tighter">
             <span className="block text-white mb-2">THE NEW</span>
             <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
@@ -34,7 +29,6 @@ export default function Page() {
             </span>
           </h1>
 
-          {/* Slogan */}
           <p className="text-xl md:text-2xl text-purple-300/80 mb-4 font-light">
             Where your digital assets find their true value.
           </p>
@@ -43,7 +37,6 @@ export default function Page() {
             <span className="text-purple-500/80">Built onchain. Secured forever.</span>
           </p>
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
               <div className="text-3xl md:text-4xl font-bold text-white mb-1">{data?.length || 0}</div>
@@ -61,7 +54,6 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Listings Section */}
       <div className="px-4 pb-20">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -70,7 +62,6 @@ export default function Page() {
           </div>
         </div>
 
-        {/* Loading State */}
         {isLoading && (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
@@ -80,7 +71,6 @@ export default function Page() {
           </div>
         )}
 
-        {/* Listings Grid */}
         {!isLoading && data && (
           <>
             {data.length > 0 ? (

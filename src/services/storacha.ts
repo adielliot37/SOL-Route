@@ -2,23 +2,25 @@ import axios from 'axios';
 const base = process.env.STORACHA_BASE || 'http://localhost:3001/rest';
 
 export async function storachaUpload(base64: string, name: string, publishToFilecoin = false) {
-  const { data } = await axios.post(base, {
-    jsonrpc: '2.0',
-    method: 'tools/call',
-    params: {
-      name: 'upload',
-      arguments: {
-        file: base64,
-        name,
-        publishToFilecoin
-      }
-    },
-    id: Date.now()
-  }, { timeout: 60_000 });
+  try {
+    const { data } = await axios.post(base, {
+      jsonrpc: '2.0',
+      method: 'tools/call',
+      params: {
+        name: 'upload',
+        arguments: {
+          file: base64,
+          name,
+          publishToFilecoin
+        }
+      },
+      id: Date.now()
+    }, { timeout: 60_000 });
 
-  if (data.error) {
-    throw new Error(`Upload failed: ${data.error.message}`);
-  }
+    if (data.error) {
+      console.error('Storacha upload error:', JSON.stringify(data.error, null, 2));
+      throw new Error(`Upload failed: ${data.error.message || JSON.stringify(data.error)}`);
+    }
 
   if (!data.result) {
     throw new Error('Invalid response from Storacha: missing result');
@@ -36,6 +38,12 @@ export async function storachaUpload(base64: string, name: string, publishToFile
   }
 
   return { cid: result.root['/'] };
+  } catch (error: any) {
+    if (error.response?.data) {
+      console.error('Storacha API error response:', JSON.stringify(error.response.data, null, 2));
+    }
+    throw error;
+  }
 }
 
 export async function storachaRetrieve(filepath: string) {
