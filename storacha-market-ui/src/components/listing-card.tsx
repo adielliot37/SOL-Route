@@ -2,6 +2,7 @@
 
 import { Card } from '@/components/ui/card'
 import Link from 'next/link'
+import { obfuscateFilename } from '@/lib/fileUtils'
 
 export default function ListingCard({ item }: { item: any }) {
   const priceSOL = (item.priceLamports / 1_000_000_000).toFixed(3)
@@ -24,7 +25,7 @@ export default function ListingCard({ item }: { item: any }) {
             </div>
           )}
 
-          <div className="absolute top-2 right-2 px-2 py-1 bg-purple-500/20 backdrop-blur-md border border-purple-500/30 rounded text-[10px] font-mono text-purple-300">
+          <div className="absolute top-2 right-2 px-2.5 py-1 bg-black/80 backdrop-blur-md border border-green-500/60 rounded-md text-[10px] font-mono text-green-400 font-semibold shadow-lg shadow-green-500/20">
             ONCHAIN
           </div>
         </div>
@@ -57,7 +58,7 @@ export default function ListingCard({ item }: { item: any }) {
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            <span className="truncate uppercase">{item.filename}</span>
+            <span className="truncate uppercase">{item.filename ? obfuscateFilename(item.filename) : 'UNKNOWN'}</span>
           </div>
         </div>
       </Card>

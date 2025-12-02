@@ -8,13 +8,15 @@ export function obfuscateFilename(filename: string): string {
   const name = hasExtension ? filename.substring(0, lastDotIndex) : filename;
   const extension = hasExtension ? filename.substring(lastDotIndex + 1) : '';
   const totalLength = name.length;
-  const showChars = Math.max(2, Math.floor(totalLength * 0.25));
+  // Show only 10% of characters (minimum 1 char at start and end)
+  const showChars = Math.max(1, Math.floor(totalLength * 0.1));
   const firstChars = name.substring(0, showChars);
   const lastChars = name.substring(name.length - showChars);
   const hiddenLength = Math.max(2, totalLength - (showChars * 2));
   const asterisks = '*'.repeat(hiddenLength);
   if (hasExtension) {
-    const extDisplay = extension.length > 3 ? extension.substring(0, 2) : extension;
+    // Show only first 2 chars of extension if it's long
+    const extDisplay = extension.length > 3 ? extension.substring(0, 2) + '*'.repeat(Math.max(0, extension.length - 2)) : extension;
     return `${firstChars}${asterisks}${lastChars}.${extDisplay}`;
   }
   

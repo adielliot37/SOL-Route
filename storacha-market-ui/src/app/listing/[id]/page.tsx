@@ -7,6 +7,7 @@ import { obfuscateFilename, detectFileType, formatFileSize } from '@/lib/fileUti
 import PasswordDialog from '@/components/PasswordDialog'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 
@@ -14,6 +15,7 @@ export default function ListingDetail() {
   const { id } = useParams() as { id: string }
   const { publicKey, sendTransaction } = useWallet()
   const { connection } = useConnection()
+  const { showToast } = useToast()
   const [listing, setListing] = useState<any>(null)
   const [order, setOrder] = useState<any>(null)
   const [delivery, setDelivery] = useState<any>(null)
@@ -50,7 +52,7 @@ export default function ListingDetail() {
 
   async function startPurchase() {
     if (!publicKey) {
-      alert('Please connect your wallet first')
+      showToast('Please connect your wallet first', 'error')
       return
     }
 
@@ -82,11 +84,11 @@ export default function ListingDetail() {
       refreshKeyExpiry()
     } catch (error: any) {
       if (error.message?.includes('Invalid password')) {
-        alert('Invalid password. Please try again.')
+        showToast('Invalid password. Please try again.', 'error')
         setPasswordAction('purchase')
         setShowPasswordDialog(true)
       } else {
-        alert('Failed to initialize purchase')
+        showToast('Failed to initialize purchase', 'error')
       }
     } finally {
       setLoading(false)
@@ -119,9 +121,9 @@ export default function ListingDetail() {
       const signature = await sendTransaction(transaction, connection)
       await connection.confirmTransaction(signature, 'confirmed')
 
-      alert(`Payment sent! Transaction: ${signature}\n\nNow click "Verify & Deliver" to get your file.`)
+      showToast(`Payment sent! Transaction: ${signature.substring(0, 8)}... Now click "Verify & Deliver" to get your file.`, 'success')
     } catch (error: any) {
-      alert(`Payment failed: ${error.message}`)
+      showToast(`Payment failed: ${error.message}`, 'error')
     } finally {
       setPaymentSending(false)
     }
@@ -133,11 +135,12 @@ export default function ListingDetail() {
       const r = await api.post('/delivery/verify-and-deliver', { orderId: order.orderId })
       if (r.data.ok) {
         setDelivery(r.data)
+        showToast('Payment verified! You can now decrypt and download your file.', 'success')
       } else {
-        alert('Payment not found yet. Please wait a moment and try again.')
+        showToast('Payment not found yet. Please wait a moment and try again.', 'warning')
       }
     } catch (error) {
-      alert('Failed to verify payment')
+      showToast('Failed to verify payment', 'error')
     } finally {
       setLoading(false)
     }
@@ -209,15 +212,15 @@ export default function ListingDetail() {
       a.download = delivery.filename || 'decrypted-file'
       a.click()
 
-      alert('File decrypted and downloaded successfully!')
+      showToast('File decrypted and downloaded successfully!', 'success')
     } catch (error: any) {
       if (error.message?.includes('Invalid password')) {
-        alert('Invalid password. Please try again.')
+        showToast('Invalid password. Please try again.', 'error')
         setUserPassword(null)
         setPasswordAction('decrypt')
         setShowPasswordDialog(true)
       } else {
-        alert(`Failed to decrypt and download file: ${error.message}`)
+        showToast(`Failed to decrypt and download file: ${error.message}`, 'error')
       }
     } finally {
       setLoading(false)

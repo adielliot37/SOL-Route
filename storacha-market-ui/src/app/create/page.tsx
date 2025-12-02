@@ -6,9 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/components/ui/toast'
+import { validateFile, MAX_FILE_SIZE, getSupportedFileTypesDescription, formatFileSize, SUPPORTED_MIME_TYPES } from '@/lib/fileValidation'
 
 export default function CreatePage() {
   const { publicKey } = useWallet()
+  const { showToast } = useToast()
   const [file, setFile] = useState<File | null>(null)
   const [name, setName] = useState<string>('')
   const [description, setDescription] = useState<string>('')
@@ -16,9 +19,34 @@ export default function CreatePage() {
   const [price, setPrice] = useState<string>('0.01') // SOL
   const [loading, setLoading] = useState(false)
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0]
+    if (!selectedFile) {
+      setFile(null)
+      return
+    }
+
+    const validation = validateFile(selectedFile)
+    if (!validation.valid) {
+      showToast(validation.error || 'Invalid file', 'error')
+      e.target.value = '' // Reset input
+      setFile(null)
+      return
+    }
+
+    setFile(selectedFile)
+  }
+
   async function onSubmit() {
     if (!file || !publicKey || !name || !description) {
-      alert('Please fill in all required fields')
+      showToast('Please fill in all required fields', 'error')
+      return
+    }
+
+    // Validate file again before submission
+    const validation = validateFile(file)
+    if (!validation.valid) {
+      showToast(validation.error || 'Invalid file', 'error')
       return
     }
 
@@ -49,7 +77,7 @@ export default function CreatePage() {
         base64File,
         priceLamports
       })
-      alert(`Listing created successfully! CID: ${r.data.cid}`)
+      showToast(`Listing created successfully! CID: ${r.data.cid}`, 'success')
 
       // Reset form
       setFile(null)
@@ -57,8 +85,11 @@ export default function CreatePage() {
       setDescription('')
       setPreview('')
       setPrice('0.01')
+      // Reset file input
+      const fileInput = document.getElementById('file') as HTMLInputElement
+      if (fileInput) fileInput.value = ''
     } catch (error: any) {
-      alert(`Failed to create listing: ${error.message}`)
+      showToast(`Failed to create listing: ${error.message}`, 'error')
     } finally {
       setLoading(false)
     }
@@ -119,14 +150,22 @@ export default function CreatePage() {
           <Input
             id="file"
             type="file"
-            onChange={e => setFile(e.target.files?.[0] || null)}
+            onChange={handleFileChange}
+            accept={SUPPORTED_MIME_TYPES.join(',')}
             className="mt-2 bg-black/40 border-purple-500/30 text-white file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:bg-purple-600 file:text-white file:font-semibold hover:file:bg-purple-500"
           />
-          {file && (
-            <p className="text-xs text-purple-400/80 mt-2">
-              Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-            </p>
-          )}
+          <div className="mt-2 space-y-1">
+            {file && (
+              <p className="text-xs text-purple-400/80">
+                Selected: {file.name} ({formatFileSize(file.size)})
+              </p>
+            )}
+            <div className="text-xs text-purple-400/60 space-y-0.5">
+              <p className="font-semibold text-purple-300/80">File Requirements:</p>
+              <p>• Max file size: {formatFileSize(MAX_FILE_SIZE)}</p>
+              <p>• Supported types: {getSupportedFileTypesDescription()}</p>
+            </div>
+          </div>
         </div>
 
         <div>

@@ -6,6 +6,7 @@ import { storachaUpload, storachaRetrieve } from '../services/storacha.js';
 import { aesEncryptFile } from '../services/crypto.js';
 import { wrapKeyWithKms } from '../services/kms.js';
 import { generatePreview } from '../services/preview.js';
+import { validateFile } from '../utils/fileValidation.js';
 
 const router = Router();
 
@@ -106,6 +107,12 @@ router.post('/create', async (req, res) => {
     }
 
     const fileBuf = Buffer.from(base64File, 'base64');
+
+    // Validate file size and type
+    const validation = validateFile(fileBuf, mime, filename);
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.error });
+    }
 
     // Generate preview and extract metadata BEFORE encryption
     let generatedPreview = preview;

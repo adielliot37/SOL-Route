@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
 import { useState, useEffect } from 'react'
 import bs58 from 'bs58'
 import * as nacl from 'tweetnacl'
@@ -47,6 +48,7 @@ interface Listing {
 export default function AccountPage() {
   const { connected, publicKey, signMessage, disconnect } = useWallet()
   const { setVisible } = useWalletModal()
+  const { showToast } = useToast()
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([])
@@ -79,13 +81,13 @@ export default function AccountPage() {
         const data = await response.json()
         setUser(data.user)
         loadPurchaseHistory()
-        alert('Wallet verified successfully!')
+        showToast('Wallet verified successfully!', 'success')
       } else {
         const error = await response.json()
-        alert(`Verification failed: ${error.error || 'Unknown error'}`)
+        showToast(`Verification failed: ${error.error || 'Unknown error'}`, 'error')
       }
     } catch (error) {
-      alert('Verification failed. Please try again.')
+      showToast('Verification failed. Please try again.', 'error')
     } finally {
       setVerifying(false)
     }
@@ -170,7 +172,7 @@ export default function AccountPage() {
       const checkResp = await api.get(`/purchase/check/${purchase.listingId._id}/${publicKey.toBase58()}`)
 
       if (!checkResp.data.purchased) {
-        alert('Purchase not found. Please contact support.')
+        showToast('Purchase not found. Please contact support.', 'error')
         return
       }
 
@@ -237,9 +239,9 @@ export default function AccountPage() {
       a.download = purchase.filename || delivery.filename || 'download'
       a.click()
 
-      alert('File downloaded successfully!')
+      showToast('File downloaded successfully!', 'success')
     } catch (error: any) {
-      alert(`Failed to download: ${error.message}`)
+      showToast(`Failed to download: ${error.message}`, 'error')
     } finally {
       setDownloadingId(null)
     }

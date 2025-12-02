@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useToast } from '@/components/ui/toast'
 
 interface PasswordDialogProps {
   onSubmit: (password: string) => void
@@ -18,6 +19,7 @@ export default function PasswordDialog({
   description = 'Enter your password to access encrypted keys',
   isCreating = false
 }: PasswordDialogProps) {
+  const { showToast } = useToast()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -26,12 +28,12 @@ export default function PasswordDialog({
     e.preventDefault()
     
     if (isCreating && password !== confirmPassword) {
-      alert('Passwords do not match')
+      showToast('Passwords do not match', 'error')
       return
     }
     
     if (password.length < 8) {
-      alert('Password must be at least 8 characters')
+      showToast('Password must be at least 8 characters', 'error')
       return
     }
     

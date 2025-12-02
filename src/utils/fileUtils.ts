@@ -1,6 +1,7 @@
 /**
  * Obfuscate filename by showing only first/last chars and hiding middle
- * Example: "aditya.jpg" -> "ad****pg"
+ * Example: "aditya.jpg" -> "a****a.j*"
+ * Shows only 10% of characters for better privacy
  */
 export function obfuscateFilename(filename: string): string {
   if (!filename || filename.length <= 4) {
@@ -14,9 +15,9 @@ export function obfuscateFilename(filename: string): string {
   const name = hasExtension ? filename.substring(0, lastDotIndex) : filename;
   const extension = hasExtension ? filename.substring(lastDotIndex + 1) : '';
 
-  // Calculate how many characters to show (20-30%)
+  // Calculate how many characters to show (10%)
   const totalLength = name.length;
-  const showChars = Math.max(2, Math.floor(totalLength * 0.25)); // Show 25% (between 20-30%)
+  const showChars = Math.max(1, Math.floor(totalLength * 0.1)); // Show 10%
   
   // Show first and last characters
   const firstChars = name.substring(0, showChars);
@@ -30,7 +31,7 @@ export function obfuscateFilename(filename: string): string {
   if (hasExtension) {
     // Show first 2 chars of extension if long, else show full extension
     const extDisplay = extension.length > 3 
-      ? extension.substring(0, 2) + '*'.repeat(extension.length - 2)
+      ? extension.substring(0, 2) + '*'.repeat(Math.max(0, extension.length - 2))
       : extension;
     return `${firstChars}${asterisks}${lastChars}.${extDisplay}`;
   }
