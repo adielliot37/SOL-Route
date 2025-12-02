@@ -6,10 +6,12 @@ import User from '../models/User.js';
 import { sealKeyToBuyer } from '../services/crypto.js';
 import { unwrapKeyWithKms } from '../services/kms.js';
 import { verifyPaymentToWithMemo } from '../services/solana.js';
+import { strictLimiter } from '../middleware/rateLimiter.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
-router.post('/verify-and-deliver', async (req, res) => {
+router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
   try {
     const { orderId } = req.body;
     if (!orderId) {
@@ -93,23 +95,26 @@ router.post('/verify-and-deliver', async (req, res) => {
     order.deliveredAt = new Date();
     await order.save();
 
+    // Update user purchase history (create user if doesn't exist)
     if (order.buyerWallet) {
-      const buyer = await User.findOne({ wallet: order.buyerWallet });
-      if (buyer) {
-        const existingPurchase = buyer.purchaseHistory.find(
-          (p: any) => p.orderId?.toString() === order._id.toString()
-        );
+      let buyer = await User.findOne({ wallet: order.buyerWallet });
+      if (!buyer) {
+        buyer = await User.create({ wallet: order.buyerWallet });
+      }
+      
+      const existingPurchase = buyer.purchaseHistory.find(
+        (p: any) => p.orderId?.toString() === order._id.toString()
+      );
 
-        if (!existingPurchase) {
-          buyer.purchaseHistory.push({
-            orderId: order._id,
-            listingId: listing._id,
-            purchasedAt: order.deliveredAt,
-            filename: listing.filename,
-            pricePaid: order.payment?.expectedLamports || listing.priceLamports
-          });
-          await buyer.save();
-        }
+      if (!existingPurchase) {
+        buyer.purchaseHistory.push({
+          orderId: order._id,
+          listingId: listing._id,
+          purchasedAt: order.deliveredAt,
+          filename: listing.filename,
+          pricePaid: order.payment?.expectedLamports || listing.priceLamports
+        });
+        await buyer.save();
       }
     }
 

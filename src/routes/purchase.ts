@@ -6,6 +6,8 @@ import User from '../models/User';
 import KeyVault from '../models/KeyVault';
 import { createPaymentTransaction, submitTransaction } from '../services/solana';
 import { unwrapKeyWithServerKms, sealKeyToBuyer } from '../services/crypto';
+import { strictLimiter } from '../middleware/rateLimiter.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
 
@@ -45,7 +47,7 @@ router.get('/check/:listingId/:wallet', async (req, res) => {
   }
 });
 
-router.post('/init', async (req, res) => {
+router.post('/init', strictLimiter, async (req, res) => {
   try {
     const { listingId, buyerEncPubKeyB64, buyerWallet } = req.body;
     
@@ -103,7 +105,7 @@ router.post('/init', async (req, res) => {
   }
 });
 
-router.post('/pay-direct', async (req, res) => {
+router.post('/pay-direct', strictLimiter, async (req, res) => {
   try {
     const { orderId, signedTransaction } = req.body;
     

@@ -16,13 +16,14 @@ export function Providers({ children }: { children: ReactNode }) {
     // Create array with explicit wallets only
     const walletList: Adapter[] = [phantom, solflare]
     
-    // Remove duplicates based on adapter name and URL to prevent React key conflicts
-    // This ensures each wallet has a unique identifier
+    // Remove duplicates and filter out unwanted wallets (like MetaMask)
     const seen = new Map<string, Adapter>()
+    const allowedNames = ['Phantom', 'Solflare']
+    
     walletList.forEach((wallet) => {
       const name = wallet.name || wallet.constructor.name
-      // Use name as key, but also check if we've seen this exact adapter instance
-      if (!seen.has(name)) {
+      // Only include allowed wallets and ensure uniqueness
+      if (allowedNames.includes(name) && !seen.has(name)) {
         seen.set(name, wallet)
       }
     })

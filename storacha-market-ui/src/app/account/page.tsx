@@ -57,13 +57,23 @@ export default function AccountPage() {
   const [loadingListings, setLoadingListings] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [autoVerifying, setAutoVerifying] = useState(false)
 
-  const verifyWallet = async () => {
-    if (!publicKey || !signMessage) return
+  const autoVerifyWallet = async () => {
+    if (!publicKey || !signMessage || autoVerifying || verifying) return
 
-    setVerifying(true)
+    setAutoVerifying(true)
     try {
-      const message = `Verify wallet ownership for Storacha Market at ${new Date().toISOString()}`
+      // Check if user exists to determine message type
+      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/check-user/${publicKey.toBase58()}`)
+      const checkData = await checkResponse.ok ? await checkResponse.json() : { exists: false }
+      
+      // Use different messages for registration vs login
+      const isNewUser = !checkData.exists
+      const message = isNewUser
+        ? `Welcome to Storacha Market! Sign this message to create your account. Timestamp: ${Date.now()}`
+        : `Sign in to Storacha Market. Timestamp: ${Date.now()}`
+      
       const messageBytes = new TextEncoder().encode(message)
       const signature = await signMessage(messageBytes)
 
@@ -73,7 +83,8 @@ export default function AccountPage() {
         body: JSON.stringify({
           wallet: publicKey.toBase58(),
           message,
-          signature: bs58.encode(signature)
+          signature: bs58.encode(signature),
+          isLogin: !isNewUser
         })
       })
 
@@ -81,15 +92,23 @@ export default function AccountPage() {
         const data = await response.json()
         setUser(data.user)
         loadPurchaseHistory()
-        showToast('Wallet verified successfully!', 'success')
+        if (data.isNewUser) {
+          showToast('Account created successfully!', 'success')
+        } else {
+          showToast('Signed in successfully!', 'success')
+        }
       } else {
         const error = await response.json()
-        showToast(`Verification failed: ${error.error || 'Unknown error'}`, 'error')
+        showToast(`Authentication failed: ${error.error || 'Unknown error'}`, 'error')
       }
-    } catch (error) {
-      showToast('Verification failed. Please try again.', 'error')
+    } catch (error: any) {
+      // Don't show error if user cancelled
+      if (error.message?.includes('User rejected') || error.message?.includes('User cancelled')) {
+        return
+      }
+      showToast('Authentication failed. Please try again.', 'error')
     } finally {
-      setVerifying(false)
+      setAutoVerifying(false)
     }
   }
 
@@ -105,9 +124,21 @@ export default function AccountPage() {
           signatureVerified: data.signatureVerified,
           createdAt: data.createdAt
         })
+        // If user exists but not verified, trigger auto-verify
+        if (!data.signatureVerified && signMessage && !autoVerifying && !verifying) {
+          setTimeout(() => autoVerifyWallet(), 500) // Small delay to avoid race conditions
+        }
+      } else if (response.status === 404) {
+        // User doesn't exist, trigger auto-verify for registration
+        if (signMessage && !autoVerifying && !verifying) {
+          setTimeout(() => autoVerifyWallet(), 500) // Small delay to avoid race conditions
+        }
       }
     } catch (error) {
-      // Silent fail for user profile loading
+      // If profile load fails, try to verify anyway (might be new user)
+      if (signMessage && !autoVerifying && !verifying) {
+        setTimeout(() => autoVerifyWallet(), 500)
+      }
     }
   }
 
@@ -158,6 +189,7 @@ export default function AccountPage() {
       disconnect()
       setUser(null)
       setPurchaseHistory([])
+      setListings([])
     } catch (error) {
       // Silent fail for disconnect
     }
@@ -249,11 +281,18 @@ export default function AccountPage() {
 
   useEffect(() => {
     if (connected && publicKey) {
+      // Load user profile first to check verification status
       loadUserProfile()
+    }
+  }, [connected, publicKey])
+
+  // Load purchase history and listings after user is loaded
+  useEffect(() => {
+    if (user?.signatureVerified && connected && publicKey) {
       loadPurchaseHistory()
       loadUserListings()
     }
-  }, [connected, publicKey])
+  }, [user?.signatureVerified, connected, publicKey])
 
   if (!connected) {
     return (
@@ -278,10 +317,11 @@ export default function AccountPage() {
           <p className="text-muted-foreground">Manage your listings and purchases</p>
         </div>
         <div className="flex items-center gap-3">
-          {!user?.signatureVerified && (
-            <Button onClick={verifyWallet} disabled={verifying} size="sm">
-              {verifying ? 'Verifying...' : 'Verify Wallet'}
-            </Button>
+          {autoVerifying && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              <span>Signing in...</span>
+            </div>
           )}
           <Button variant="outline" onClick={handleDisconnect} size="sm">
             Disconnect

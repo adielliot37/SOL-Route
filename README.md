@@ -305,16 +305,30 @@ npm install
 
 Create `.env`:
 ```
+# Server
 PORT=3001
+NODE_ENV=production
+LOG_LEVEL=info
+
+# Database
 MONGODB_URI=mongodb://localhost:27017/storacha-market
+
+# AWS KMS
 AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=your_key
 AWS_SECRET_ACCESS_KEY=your_secret
 KMS_KEY_ID=arn:aws:kms:region:account:key/key-id
+
+# Solana
 SOLANA_RPC_URL=https://api.devnet.solana.com
 PAYMENT_WALLET=YourSolanaAddress
+
+# Storacha/IPFS
+STORACHA_BASE=http://localhost:3001/rest
 W3UP_EMAIL=your@email.com
 W3UP_SPACE=your_space_did
+
+
 ```
 
 Run:

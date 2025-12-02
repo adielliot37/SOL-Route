@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, json } from 'express';
 import Listing from '../models/Listing.js';
 import Order from '../models/Order.js';
 import KeyVault from '../models/KeyVault.js';
@@ -7,8 +7,14 @@ import { aesEncryptFile } from '../services/crypto.js';
 import { wrapKeyWithKms } from '../services/kms.js';
 import { generatePreview } from '../services/preview.js';
 import { validateFile } from '../utils/fileValidation.js';
+import { validatePreviewUrl } from '../utils/urlValidation.js';
+import { uploadLimiter } from '../middleware/rateLimiter.js';
+import { logger } from '../utils/logger.js';
 
 const router = Router();
+
+// File upload route needs larger body size limit
+const fileUploadParser = json({ limit: '50mb' });
 
 router.get('/', async (req, res) => {
   try {
@@ -93,19 +99,20 @@ router.get('/:id/file', async (req, res) => {
     const result = await storachaRetrieve(filepath);
 
     if (!result.file) {
+      logger.error({ listingId: req.params.id }, 'File retrieval returned no data');
       return res.status(500).json({ error: 'File retrieval returned no data' });
     }
 
     return res.json(result);
   } catch (e: any) {
-    console.error('Error retrieving file:', e);
+    logger.error({ error: e.message, listingId: req.params.id }, 'Error retrieving file');
     return res.status(500).json({ error: 'Failed to retrieve file' });
   }
 });
 
-router.post('/create', async (req, res) => {
+router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
   try {
-    console.log('Creating listing...');
+    logger.info({ sellerWallet: req.body.sellerWallet }, 'Creating listing...');
     const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
@@ -138,6 +145,15 @@ router.post('/create', async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
 
+    // Validate preview URL if provided
+    if (preview && typeof preview === 'string' && preview.startsWith('http')) {
+      const urlValidation = validatePreviewUrl(preview);
+      if (!urlValidation.valid) {
+        logger.warn({ preview, error: urlValidation.error }, 'Invalid preview URL');
+        return res.status(400).json({ error: `Invalid preview URL: ${urlValidation.error}` });
+      }
+    }
+
     // Generate preview and extract metadata BEFORE encryption
     let generatedPreview = preview;
     let metadata = {};
@@ -146,7 +162,7 @@ router.post('/create', async (req, res) => {
       generatedPreview = previewResult.preview;
       metadata = previewResult.metadata;
     } catch (previewError: any) {
-      console.warn('Preview generation failed:', previewError.message);
+      logger.warn({ error: previewError.message }, 'Preview generation failed');
       // Continue without preview if generation fails
     }
 
@@ -175,10 +191,11 @@ router.post('/create', async (req, res) => {
     const wrapped = await wrapKeyWithKms(aesKey);
     await KeyVault.create({ listingId: listing._id, ...wrapped });
 
+    logger.info({ listingId: listing._id, cid }, 'Listing created successfully');
     return res.json({ listingId: listing._id, cid, preview: generatedPreview, metadata });
   } catch (e: any) {
-    console.error('Error creating listing:', e);
-    return res.status(500).json({ error: e.message });
+    logger.error({ error: e.message, stack: e.stack }, 'Error creating listing');
+    return res.status(500).json({ error: process.env.NODE_ENV === 'production' ? 'Failed to create listing' : e.message });
   }
 });
 
