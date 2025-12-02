@@ -98,6 +98,14 @@ export default function ListingDetail() {
   async function sendPaymentWithMemo() {
     if (!publicKey || !order) return
 
+    // Confirmation before payment
+    const confirmed = window.confirm(
+      `Send ${(order.lamports / 1_000_000_000).toFixed(3)} SOL to complete purchase?\n\n` +
+      `Recipient: ${order.payTo.substring(0, 8)}...${order.payTo.substring(order.payTo.length - 8)}\n` +
+      `Order ID: ${order.memo}`
+    )
+    if (!confirmed) return
+
     setPaymentSending(true)
     try {
       const transaction = new Transaction()
@@ -122,14 +130,28 @@ export default function ListingDetail() {
       await connection.confirmTransaction(signature, 'confirmed')
 
       showToast(`Payment sent! Transaction: ${signature.substring(0, 8)}... Now click "Verify & Deliver" to get your file.`, 'success')
+      
+      // Auto-verify after a short delay
+      setTimeout(() => {
+        verify()
+      }, 2000)
     } catch (error: any) {
-      showToast(`Payment failed: ${error.message}`, 'error')
+      if (error.message?.includes('User rejected')) {
+        showToast('Payment cancelled by user', 'info')
+      } else {
+        showToast(`Payment failed: ${error.message || 'Unknown error'}`, 'error')
+      }
     } finally {
       setPaymentSending(false)
     }
   }
 
   async function verify() {
+    if (!order) {
+      showToast('No order found. Please initiate purchase first.', 'error')
+      return
+    }
+    
     setLoading(true)
     try {
       const r = await api.post('/delivery/verify-and-deliver', { orderId: order.orderId })
@@ -139,8 +161,22 @@ export default function ListingDetail() {
       } else {
         showToast('Payment not found yet. Please wait a moment and try again.', 'warning')
       }
-    } catch (error) {
-      showToast('Failed to verify payment', 'error')
+    } catch (error: any) {
+      if (error.response?.status === 400 && error.response?.data?.error?.includes('already used')) {
+        showToast('This transaction was already processed. Checking delivery...', 'warning')
+        // Try to fetch delivery again
+        try {
+          const checkResp = await api.get(`/purchase/check/${id}/${publicKey?.toBase58()}`)
+          if (checkResp.data.purchased) {
+            setDelivery(checkResp.data.delivery)
+            showToast('Payment already verified! You can decrypt and download.', 'success')
+          }
+        } catch (e) {
+          // Ignore
+        }
+      } else {
+        showToast(`Failed to verify payment: ${error.response?.data?.error || error.message || 'Unknown error'}`, 'error')
+      }
     } finally {
       setLoading(false)
     }

@@ -50,19 +50,32 @@ export default function CreatePage() {
       return
     }
 
+    // Validate price
+    const priceNum = parseFloat(price)
+    if (isNaN(priceNum) || priceNum <= 0) {
+      showToast('Price must be a positive number', 'error')
+      return
+    }
+    if (priceNum > 1000) {
+      showToast('Price cannot exceed 1000 SOL', 'error')
+      return
+    }
+
     setLoading(true)
     try {
-      const buf = await file.arrayBuffer()
-      const uint8Array = new Uint8Array(buf)
-
-      // Convert to base64 safely for large files
-      let binary = ''
-      const chunkSize = 8192
-      for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.slice(i, i + chunkSize)
-        binary += String.fromCharCode.apply(null, Array.from(chunk))
-      }
-      const base64File = btoa(binary)
+      // Convert to base64 safely for large files (fix stack overflow issue)
+      // Use FileReader which handles large files better than manual conversion
+      const base64File = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          // Remove data URL prefix (data:mime/type;base64,)
+          const base64 = result.includes(',') ? result.split(',')[1] : result
+          resolve(base64)
+        }
+        reader.onerror = () => reject(new Error('Failed to read file'))
+        reader.readAsDataURL(file)
+      })
 
       // Convert SOL to lamports
       const priceLamports = Math.floor(parseFloat(price) * 1_000_000_000)
@@ -77,17 +90,19 @@ export default function CreatePage() {
         base64File,
         priceLamports
       })
-      showToast(`Listing created successfully! CID: ${r.data.cid}`, 'success')
+      showToast(`Listing created successfully! CID: ${r.data.cid.substring(0, 8)}...`, 'success')
 
-      // Reset form
-      setFile(null)
-      setName('')
-      setDescription('')
-      setPreview('')
-      setPrice('0.01')
-      // Reset file input
-      const fileInput = document.getElementById('file') as HTMLInputElement
-      if (fileInput) fileInput.value = ''
+      // Reset form after short delay
+      setTimeout(() => {
+        setFile(null)
+        setName('')
+        setDescription('')
+        setPreview('')
+        setPrice('0.01')
+        // Reset file input
+        const fileInput = document.getElementById('file') as HTMLInputElement
+        if (fileInput) fileInput.value = ''
+      }, 1500)
     } catch (error: any) {
       showToast(`Failed to create listing: ${error.message}`, 'error')
     } finally {
@@ -177,16 +192,30 @@ export default function CreatePage() {
             type="number"
             step="0.001"
             min="0"
+            max="1000"
             placeholder="0.01"
             value={price}
-            onChange={e => setPrice(e.target.value)}
+            onChange={e => {
+              const val = e.target.value
+              if (val === '' || (!isNaN(parseFloat(val)) && parseFloat(val) >= 0 && parseFloat(val) <= 1000)) {
+                setPrice(val)
+              }
+            }}
             className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
           />
-          <p className="text-xs text-purple-400/60 mt-2">
-            {price && !isNaN(parseFloat(price))
-              ? `≈ ${(parseFloat(price) * 1_000_000_000).toLocaleString()} lamports`
-              : 'Enter price in SOL'}
-          </p>
+          <div className="mt-2 space-y-1">
+            <p className="text-xs text-purple-400/60">
+              {price && !isNaN(parseFloat(price))
+                ? `≈ ${(parseFloat(price) * 1_000_000_000).toLocaleString()} lamports`
+                : 'Enter price in SOL (0.001 - 1000 SOL)'}
+            </p>
+            {price && parseFloat(price) > 0 && parseFloat(price) <= 1000 && (
+              <p className="text-xs text-green-400/60">✓ Valid price</p>
+            )}
+            {price && (parseFloat(price) <= 0 || parseFloat(price) > 1000) && (
+              <p className="text-xs text-red-400/60">✗ Price must be between 0.001 and 1000 SOL</p>
+            )}
+          </div>
         </div>
 
         <Button

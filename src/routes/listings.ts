@@ -85,6 +85,10 @@ router.get('/:id/file', async (req, res) => {
       return res.status(404).json({ error: 'Listing not found' });
     }
 
+    // Optional: Add authorization check here if needed
+    // For now, we rely on the encrypted nature of the file
+    // The file is encrypted, so even if accessed, it's useless without the key
+
     const filepath = `${listing.cid}/${listing.filename}`;
     const result = await storachaRetrieve(filepath);
 
@@ -94,7 +98,8 @@ router.get('/:id/file', async (req, res) => {
 
     return res.json(result);
   } catch (e: any) {
-    return res.status(500).json({ error: e.message });
+    console.error('Error retrieving file:', e);
+    return res.status(500).json({ error: 'Failed to retrieve file' });
   }
 });
 
@@ -104,6 +109,25 @@ router.post('/create', async (req, res) => {
     const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
+    }
+
+    // Validate price
+    if (typeof priceLamports !== 'number' || priceLamports <= 0) {
+      return res.status(400).json({ error: 'Price must be a positive number' });
+    }
+    if (priceLamports > 1_000_000_000_000) { // 1000 SOL max
+      return res.status(400).json({ error: 'Price cannot exceed 1000 SOL' });
+    }
+
+    // Validate and sanitize inputs
+    if (typeof name !== 'string' || name.trim().length === 0 || name.length > 200) {
+      return res.status(400).json({ error: 'Name must be between 1 and 200 characters' });
+    }
+    if (typeof description !== 'string' || description.trim().length === 0 || description.length > 2000) {
+      return res.status(400).json({ error: 'Description must be between 1 and 2000 characters' });
+    }
+    if (typeof filename !== 'string' || filename.length === 0 || filename.length > 255) {
+      return res.status(400).json({ error: 'Filename must be between 1 and 255 characters' });
     }
 
     const fileBuf = Buffer.from(base64File, 'base64');
@@ -137,11 +161,11 @@ router.post('/create', async (req, res) => {
       sellerId,
       sellerWallet,
       cid,
-      filename,
-      name,
-      description,
+      filename: filename.trim(),
+      name: name.trim(),
+      description: description.trim(),
       preview: generatedPreview,
-      mime,
+      mime: mime || 'application/octet-stream',
       size: fileBuf.length,
       priceLamports,
       metadata

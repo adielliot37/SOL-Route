@@ -12,10 +12,30 @@ const router = Router();
 router.post('/verify-and-deliver', async (req, res) => {
   try {
     const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: 'orderId is required' });
+    }
+    
     const order = await Order.findOne({ orderId });
     if (!order) return res.status(404).json({ error: 'order not found' });
 
     if (order.status === 'DELIVERED') {
+      const listing = await Listing.findById(order.listingId);
+      return res.json({ 
+        ok: true, 
+        sealedKeyB64: order.sealedKeyB64, 
+        ephemeralPubB64: order.ephemeralPubB64,
+        cid: listing?.cid,
+        filename: listing?.filename,
+        mime: listing?.mime
+      });
+    }
+    
+    // Prevent race condition - check if already being processed
+    if (order.status === 'PAID' && order.sealedKeyB64) {
+      // Already delivered but status not updated, fix it
+      order.status = 'DELIVERED';
+      await order.save();
       const listing = await Listing.findById(order.listingId);
       return res.json({ 
         ok: true, 
@@ -36,6 +56,17 @@ router.post('/verify-and-deliver', async (req, res) => {
       order.payment!.memo!
     );
     if (!check.ok) return res.status(202).json({ ok: false, status: 'AWAITING_PAYMENT' });
+
+    // Check if transaction was already used (prevent replay)
+    if (check.signature) {
+      const existingOrder = await Order.findOne({ 
+        'payment.txSig': check.signature,
+        _id: { $ne: order._id }
+      });
+      if (existingOrder) {
+        return res.status(400).json({ error: 'Transaction signature already used' });
+      }
+    }
 
     order.status = 'PAID';
     order.payment!.txSig = check.signature!;

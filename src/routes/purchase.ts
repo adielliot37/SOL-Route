@@ -48,11 +48,34 @@ router.get('/check/:listingId/:wallet', async (req, res) => {
 router.post('/init', async (req, res) => {
   try {
     const { listingId, buyerEncPubKeyB64, buyerWallet } = req.body;
+    
+    // Validate inputs
+    if (!listingId || !buyerEncPubKeyB64 || !buyerWallet) {
+      return res.status(400).json({ error: 'Missing required fields: listingId, buyerEncPubKeyB64, buyerWallet' });
+    }
+    
+    // Validate base64 format
+    try {
+      Buffer.from(buyerEncPubKeyB64, 'base64');
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid buyerEncPubKeyB64 format' });
+    }
+    
     const listing = await Listing.findById(listingId);
     if (!listing) return res.status(404).json({ error: 'listing not found' });
 
     if (listing.sellerWallet === buyerWallet) {
       return res.status(400).json({ error: 'Cannot purchase your own listing' });
+    }
+    
+    // Check if already purchased
+    const existingOrder = await Order.findOne({
+      listingId,
+      buyerWallet,
+      status: 'DELIVERED'
+    });
+    if (existingOrder) {
+      return res.status(400).json({ error: 'You have already purchased this listing' });
     }
 
     const orderId = uuidv4();
