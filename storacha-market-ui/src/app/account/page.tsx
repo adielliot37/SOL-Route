@@ -256,8 +256,9 @@ export default function AccountPage() {
       const tag = enc.slice(12, 28)
       const ciphertext = enc.slice(28)
 
-      // Decrypt
-      const key = await crypto.subtle.importKey('raw', K, 'AES-GCM', false, ['decrypt'])
+      // Decrypt - create a new Uint8Array to ensure proper ArrayBuffer type
+      const KArray = new Uint8Array(K)
+      const key = await crypto.subtle.importKey('raw', KArray, 'AES-GCM', false, ['decrypt'])
       const concat = (a: Uint8Array, b: Uint8Array) => {
         const o = new Uint8Array(a.length + b.length)
         o.set(a)

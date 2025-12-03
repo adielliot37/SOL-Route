@@ -32,9 +32,11 @@ interface Order {
 }
 
 interface Delivery {
-  encryptedKeyB64: string
-  ephemeralPubKeyB64: string
+  sealedKeyB64: string
+  ephemeralPubB64: string
   cid: string
+  filename?: string
+  mime?: string
 }
 
 export default function ListingDetail() {
@@ -220,6 +222,11 @@ export default function ListingDetail() {
   }
 
   async function executeDecrypt(password: string) {
+    if (!delivery) {
+      showToast('Delivery data not found. Please verify your purchase first.', 'error')
+      return
+    }
+    
     setLoading(true)
     try {
       const K = await openSealedKeyB64(
@@ -261,11 +268,18 @@ export default function ListingDetail() {
       const iv = enc.slice(0, 12)
       const tag = enc.slice(12, 28)
       const ciphertext = enc.slice(28)
-      const key = await crypto.subtle.importKey('raw', K, 'AES-GCM', false, ['decrypt'])
+      // Create a new Uint8Array to ensure proper ArrayBuffer type
+      const KArray = new Uint8Array(K)
+      const key = await crypto.subtle.importKey('raw', KArray, 'AES-GCM', false, ['decrypt'])
+      const combined = concat(ciphertext, tag)
+      // Create a new ArrayBuffer to ensure proper type compatibility
+      const combinedBuffer = new ArrayBuffer(combined.length)
+      const combinedView = new Uint8Array(combinedBuffer)
+      combinedView.set(combined)
       const pt = await crypto.subtle.decrypt(
         { name: 'AES-GCM', iv, tagLength: 128 },
         key,
-        concat(ciphertext, tag)
+        combinedBuffer
       )
 
       const blob = new Blob([pt], { type: delivery.mime || 'application/octet-stream' })
@@ -365,7 +379,7 @@ export default function ListingDetail() {
               <div className="flex items-center gap-2">
                 <span className="text-muted-foreground">Filename:</span>
                 <code className="px-2 py-1 bg-muted rounded text-xs font-mono">
-                  {obfuscateFilename(listing.filename)}
+                  {obfuscateFilename(listing.filename || 'unknown')}
                 </code>
               </div>
               {listing.size && (
