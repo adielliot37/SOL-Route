@@ -6,8 +6,8 @@ const SEC_KEY = 'x25519_sec_b64'
 
 export async function getOrCreateX25519() {
   await sodium.ready
-  let pub = localStorage.getItem(PUB_KEY)
-  let sec = localStorage.getItem(SEC_KEY)
+  const pub = localStorage.getItem(PUB_KEY)
+  const sec = localStorage.getItem(SEC_KEY)
   if (pub && sec) {
     return {
       pub: Uint8Array.from(atob(pub), c=>c.charCodeAt(0)),

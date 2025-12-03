@@ -107,7 +107,7 @@ export async function getOrCreateX25519(password: string): Promise<KeyPair> {
         sec,
         pubB64: pub
       }
-    } catch (error) {
+    } catch {
       throw new Error('Invalid password or corrupted key data')
     }
   }
@@ -138,7 +138,7 @@ export async function openSealedKeyB64(
   password: string
 ): Promise<Uint8Array> {
   await sodium.ready
-  const { pub, sec } = await getOrCreateX25519(password)
+  const { sec } = await getOrCreateX25519(password)
   const combined = Uint8Array.from(atob(sealedKeyB64), c => c.charCodeAt(0))
   const nonce = combined.slice(0, sodium.crypto_box_NONCEBYTES)
   const ciphertext = combined.slice(sodium.crypto_box_NONCEBYTES)

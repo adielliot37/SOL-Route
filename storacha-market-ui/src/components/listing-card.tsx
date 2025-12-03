@@ -2,9 +2,19 @@
 
 import { Card } from '@/components/ui/card'
 import Link from 'next/link'
+import Image from 'next/image'
 import { obfuscateFilename } from '@/lib/fileUtils'
 
-export default function ListingCard({ item }: { item: any }) {
+interface ListingItem {
+  _id: string
+  name?: string
+  filename?: string
+  description?: string
+  preview?: string
+  priceLamports: number
+}
+
+export default function ListingCard({ item }: { item: ListingItem }) {
   const priceSOL = (item.priceLamports / 1_000_000_000).toFixed(3)
 
   return (
@@ -13,7 +23,15 @@ export default function ListingCard({ item }: { item: any }) {
         <div className="relative aspect-video bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-purple-900/20 flex items-center justify-center overflow-hidden">
           {item.preview ? (
             <>
-              <img src={item.preview} alt={item.name} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0">
+                <Image 
+                  src={item.preview} 
+                  alt={item.name || item.filename || 'Listing preview'} 
+                  fill
+                  className="object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                  unoptimized
+                />
+              </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             </>
           ) : (
