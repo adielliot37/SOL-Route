@@ -10,5 +10,5 @@
     "verbatimModuleSyntax": true,   // ok with ESM
     "outDir": "dist"
   },
-  "include": ["src"]
+  "include": ["src", "api"]
 }
