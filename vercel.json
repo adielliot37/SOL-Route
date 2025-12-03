@@ -8,9 +8,20 @@
   ],
   "routes": [
     {
-      "src": "/(.*)",
+      "src": "/api/(.*)",
+      "dest": "api/index.ts"
+    },
+    {
+      "src": "/auth/(.*)",
+      "dest": "api/index.ts"
+    },
+    {
+      "src": "/health",
       "dest": "api/index.ts"
     }
+  ],
+  "ignore": [
+    "storacha-market-ui/**"
   ],
   "env": {
     "NODE_ENV": "production"
