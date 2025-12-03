@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import User from '../models/User';
-import { verifySignature } from '../services/solana';
+import User from '../models/User.js';
+import { verifySignature } from '../services/solana.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
