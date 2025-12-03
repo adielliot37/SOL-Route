@@ -20,9 +20,6 @@
       "dest": "api/index.ts"
     }
   ],
-  "ignore": [
-    "storacha-market-ui/**"
-  ],
   "env": {
     "NODE_ENV": "production"
   }
