@@ -4,12 +4,12 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { useToast } from '@/components/ui/toast'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import bs58 from 'bs58'
 import * as nacl from 'tweetnacl'
 import { api } from '@/lib/api'
 import { openSealedKeyB64 } from '@/lib/crypto'
-import { useRouter } from 'next/navigation'
 
 interface PurchaseHistory {
   orderId: string
@@ -45,17 +45,22 @@ interface Listing {
   purchases: Purchase[]
 }
 
+interface User {
+  wallet: string
+  signatureVerified: boolean
+  createdAt?: string
+}
+
 export default function AccountPage() {
   const { connected, publicKey, signMessage, disconnect } = useWallet()
   const { setVisible } = useWalletModal()
   const { showToast } = useToast()
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([])
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingListings, setLoadingListings] = useState(false)
-  const [verifying, setVerifying] = useState(false)
+  const [verifying] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [autoVerifying, setAutoVerifying] = useState(false)
 
@@ -101,9 +106,10 @@ export default function AccountPage() {
         const error = await response.json()
         showToast(`Authentication failed: ${error.error || 'Unknown error'}`, 'error')
       }
-    } catch (error: any) {
+    } catch (error) {
+      const err = error as Error
       // Don't show error if user cancelled
-      if (error.message?.includes('User rejected') || error.message?.includes('User cancelled')) {
+      if (err.message?.includes('User rejected') || err.message?.includes('User cancelled')) {
         return
       }
       showToast('Authentication failed. Please try again.', 'error')
@@ -112,7 +118,7 @@ export default function AccountPage() {
     }
   }
 
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!publicKey) return
 
     try {
@@ -134,15 +140,15 @@ export default function AccountPage() {
           setTimeout(() => autoVerifyWallet(), 500) // Small delay to avoid race conditions
         }
       }
-    } catch (error) {
+    } catch {
       // If profile load fails, try to verify anyway (might be new user)
       if (signMessage && !autoVerifying && !verifying) {
         setTimeout(() => autoVerifyWallet(), 500)
       }
     }
-  }
+  }, [publicKey, signMessage, autoVerifying, verifying])
 
-  const loadPurchaseHistory = async () => {
+  const loadPurchaseHistory = useCallback(async () => {
     if (!publicKey) return
 
     setLoading(true)
@@ -152,14 +158,14 @@ export default function AccountPage() {
         const data = await response.json()
         setPurchaseHistory(data.purchaseHistory)
       }
-    } catch (error) {
+    } catch {
       // Silent fail for purchase history loading
     } finally {
       setLoading(false)
     }
-  }
+  }, [publicKey])
 
-  const loadUserListings = async () => {
+  const loadUserListings = useCallback(async () => {
     if (!publicKey) return
 
     setLoadingListings(true)
@@ -169,12 +175,12 @@ export default function AccountPage() {
         const data = await response.json()
         setListings(data)
       }
-    } catch (error) {
+    } catch {
       // Silent fail for listings loading
     } finally {
       setLoadingListings(false)
     }
-  }
+  }, [publicKey])
 
   const handleDisconnect = async () => {
     if (!publicKey) return
@@ -190,7 +196,7 @@ export default function AccountPage() {
       setUser(null)
       setPurchaseHistory([])
       setListings([])
-    } catch (error) {
+    } catch {
       // Silent fail for disconnect
     }
   }
@@ -272,8 +278,9 @@ export default function AccountPage() {
       a.click()
 
       showToast('File downloaded successfully!', 'success')
-    } catch (error: any) {
-      showToast(`Failed to download: ${error.message}`, 'error')
+    } catch (error) {
+      const err = error as Error
+      showToast(`Failed to download: ${err.message}`, 'error')
     } finally {
       setDownloadingId(null)
     }
@@ -284,7 +291,7 @@ export default function AccountPage() {
       // Load user profile first to check verification status
       loadUserProfile()
     }
-  }, [connected, publicKey])
+  }, [connected, publicKey, loadUserProfile])
 
   // Load purchase history and listings after user is loaded
   useEffect(() => {
@@ -292,7 +299,7 @@ export default function AccountPage() {
       loadPurchaseHistory()
       loadUserListings()
     }
-  }, [user?.signatureVerified, connected, publicKey])
+  }, [user?.signatureVerified, connected, publicKey, loadPurchaseHistory, loadUserListings])
 
   if (!connected) {
     return (
@@ -462,7 +469,7 @@ export default function AccountPage() {
               Create your first listing to start selling encrypted content!
             </p>
             <Button asChild>
-              <a href="/create">Create Listing</a>
+              <Link href="/create">Create Listing</Link>
             </Button>
           </Card>
         )}
@@ -551,7 +558,7 @@ export default function AccountPage() {
               Browse the marketplace to buy your first encrypted file!
             </p>
             <Button asChild variant="outline">
-              <a href="/">Browse Marketplace</a>
+              <Link href="/">Browse Marketplace</Link>
             </Button>
           </Card>
         )}

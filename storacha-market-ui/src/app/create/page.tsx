@@ -103,8 +103,9 @@ export default function CreatePage() {
         const fileInput = document.getElementById('file') as HTMLInputElement
         if (fileInput) fileInput.value = ''
       }, 1500)
-    } catch (error: any) {
-      showToast(`Failed to create listing: ${error.message}`, 'error')
+    } catch (error) {
+      const err = error as Error
+      showToast(`Failed to create listing: ${err.message}`, 'error')
     } finally {
       setLoading(false)
     }
