@@ -1,6 +1,4 @@
 node_modules
-src
-storacha-market-ui
 .env
 .env.local
 *.log
