@@ -7,7 +7,6 @@ import { useToast } from '@/components/ui/toast'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import bs58 from 'bs58'
-import * as nacl from 'tweetnacl'
 import { api } from '@/lib/api'
 import { openSealedKeyB64 } from '@/lib/crypto'
 
@@ -64,7 +63,24 @@ export default function AccountPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [autoVerifying, setAutoVerifying] = useState(false)
 
-  const autoVerifyWallet = async () => {
+  const loadPurchaseHistory = useCallback(async () => {
+    if (!publicKey) return
+
+    setLoading(true)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/purchase-history/${publicKey.toBase58()}`)
+      if (response.ok) {
+        const data = await response.json()
+        setPurchaseHistory(data.purchaseHistory)
+      }
+    } catch {
+      // Silent fail for purchase history loading
+    } finally {
+      setLoading(false)
+    }
+  }, [publicKey])
+
+  const autoVerifyWallet = useCallback(async () => {
     if (!publicKey || !signMessage || autoVerifying || verifying) return
 
     setAutoVerifying(true)
@@ -116,7 +132,7 @@ export default function AccountPage() {
     } finally {
       setAutoVerifying(false)
     }
-  }
+  }, [publicKey, signMessage, autoVerifying, verifying, loadPurchaseHistory, showToast])
 
   const loadUserProfile = useCallback(async () => {
     if (!publicKey) return
@@ -146,24 +162,7 @@ export default function AccountPage() {
         setTimeout(() => autoVerifyWallet(), 500)
       }
     }
-  }, [publicKey, signMessage, autoVerifying, verifying])
-
-  const loadPurchaseHistory = useCallback(async () => {
-    if (!publicKey) return
-
-    setLoading(true)
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/purchase-history/${publicKey.toBase58()}`)
-      if (response.ok) {
-        const data = await response.json()
-        setPurchaseHistory(data.purchaseHistory)
-      }
-    } catch {
-      // Silent fail for purchase history loading
-    } finally {
-      setLoading(false)
-    }
-  }, [publicKey])
+  }, [publicKey, signMessage, autoVerifying, verifying, autoVerifyWallet])
 
   const loadUserListings = useCallback(async () => {
     if (!publicKey) return

@@ -23,10 +23,13 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array): Promis
     ['deriveKey']
   )
   
+  // Create a new Uint8Array to ensure proper ArrayBuffer type
+  const saltArray = new Uint8Array(salt)
+  
   return crypto.subtle.deriveKey(
     {
       name: 'PBKDF2',
-      salt: salt,
+      salt: saltArray,
       iterations: 310000,
       hash: 'SHA-256'
     },
@@ -39,10 +42,12 @@ async function deriveKeyFromPassword(password: string, salt: Uint8Array): Promis
 
 async function encryptWithKey(data: Uint8Array, key: CryptoKey): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12))
+  // Create a new Uint8Array to ensure proper ArrayBuffer type
+  const dataArray = new Uint8Array(data)
   const encrypted = await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv },
     key,
-    data
+    dataArray
   )
   const combined = new Uint8Array(iv.length + encrypted.byteLength)
   combined.set(iv)
