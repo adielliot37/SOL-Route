@@ -2,6 +2,7 @@
 import { api } from '@/lib/api'
 import { useParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { getOrCreateX25519, openSealedKeyB64, hasStoredKeys, refreshKeyExpiry, getTimeUntilExpiry } from '@/lib/cryptoSecure'
 import { obfuscateFilename, detectFileType, formatFileSize } from '@/lib/fileUtils'
 import PasswordDialog from '@/components/PasswordDialog'
@@ -11,17 +12,41 @@ import { useToast } from '@/components/ui/toast'
 import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { PublicKey, Transaction, SystemProgram, TransactionInstruction } from '@solana/web3.js'
 
+interface Listing {
+  _id: string
+  name?: string
+  filename?: string
+  description?: string
+  preview?: string
+  priceLamports: number
+  sellerWallet: string
+  mime?: string
+  size?: number
+}
+
+interface Order {
+  orderId: string
+  lamports: number
+  payTo: string
+  memo: string
+}
+
+interface Delivery {
+  encryptedKeyB64: string
+  ephemeralPubKeyB64: string
+  cid: string
+}
+
 export default function ListingDetail() {
   const { id } = useParams() as { id: string }
   const { publicKey, sendTransaction } = useWallet()
   const { connection } = useConnection()
   const { showToast } = useToast()
-  const [listing, setListing] = useState<any>(null)
-  const [order, setOrder] = useState<any>(null)
-  const [delivery, setDelivery] = useState<any>(null)
+  const [listing, setListing] = useState<Listing | null>(null)
+  const [order, setOrder] = useState<Order | null>(null)
+  const [delivery, setDelivery] = useState<Delivery | null>(null)
   const [loading, setLoading] = useState(false)
   const [paymentSending, setPaymentSending] = useState(false)
-  const [checkingPurchase, setCheckingPurchase] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [passwordAction, setPasswordAction] = useState<'purchase' | 'decrypt' | null>(null)
   const [userPassword, setUserPassword] = useState<string | null>(null)
@@ -33,15 +58,13 @@ export default function ListingDetail() {
     async function checkExistingPurchase() {
       if (!publicKey || !id) return
 
-      setCheckingPurchase(true)
       try {
         const response = await api.get(`/purchase/check/${id}/${publicKey.toBase58()}`)
         if (response.data.purchased) {
         setDelivery(response.data.delivery)
         }
-      } catch (error) {
-      } finally {
-        setCheckingPurchase(false)
+      } catch {
+        // Ignore errors when checking for existing purchases
       }
     }
 
@@ -82,8 +105,9 @@ export default function ListingDetail() {
       })
       setOrder(r.data)
       refreshKeyExpiry()
-    } catch (error: any) {
-      if (error.message?.includes('Invalid password')) {
+    } catch (error) {
+      const err = error as Error
+      if (err.message?.includes('Invalid password')) {
         showToast('Invalid password. Please try again.', 'error')
         setPasswordAction('purchase')
         setShowPasswordDialog(true)
@@ -135,11 +159,12 @@ export default function ListingDetail() {
       setTimeout(() => {
         verify()
       }, 2000)
-    } catch (error: any) {
-      if (error.message?.includes('User rejected')) {
+    } catch (error) {
+      const err = error as Error
+      if (err.message?.includes('User rejected')) {
         showToast('Payment cancelled by user', 'info')
       } else {
-        showToast(`Payment failed: ${error.message || 'Unknown error'}`, 'error')
+        showToast(`Payment failed: ${err.message || 'Unknown error'}`, 'error')
       }
     } finally {
       setPaymentSending(false)
@@ -161,8 +186,9 @@ export default function ListingDetail() {
       } else {
         showToast('Payment not found yet. Please wait a moment and try again.', 'warning')
       }
-    } catch (error: any) {
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('already used')) {
+    } catch (error) {
+      const err = error as { response?: { status?: number; data?: { error?: string } }; message?: string }
+      if (err.response?.status === 400 && err.response?.data?.error?.includes('already used')) {
         showToast('This transaction was already processed. Checking delivery...', 'warning')
         // Try to fetch delivery again
         try {
@@ -171,11 +197,11 @@ export default function ListingDetail() {
             setDelivery(checkResp.data.delivery)
             showToast('Payment already verified! You can decrypt and download.', 'success')
           }
-        } catch (e) {
+        } catch {
           // Ignore
         }
       } else {
-        showToast(`Failed to verify payment: ${error.response?.data?.error || error.message || 'Unknown error'}`, 'error')
+        showToast(`Failed to verify payment: ${err.response?.data?.error || err.message || 'Unknown error'}`, 'error')
       }
     } finally {
       setLoading(false)
@@ -228,7 +254,7 @@ export default function ListingDetail() {
         for (let i = 0; i < binaryString.length; i++) {
           enc[i] = binaryString.charCodeAt(i)
         }
-      } catch (e) {
+      } catch {
         throw new Error('Failed to decode base64 data. The file might be corrupted.')
       }
 
@@ -249,14 +275,15 @@ export default function ListingDetail() {
       a.click()
 
       showToast('File decrypted and downloaded successfully!', 'success')
-    } catch (error: any) {
-      if (error.message?.includes('Invalid password')) {
+    } catch (error) {
+      const err = error as Error
+      if (err.message?.includes('Invalid password')) {
         showToast('Invalid password. Please try again.', 'error')
         setUserPassword(null)
         setPasswordAction('decrypt')
         setShowPasswordDialog(true)
       } else {
-        showToast(`Failed to decrypt and download file: ${error.message}`, 'error')
+        showToast(`Failed to decrypt and download file: ${err.message}`, 'error')
       }
     } finally {
       setLoading(false)
@@ -298,9 +325,15 @@ export default function ListingDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <Card className="overflow-hidden">
-            <div className="aspect-video bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-pink-500/20 flex items-center justify-center">
+            <div className="relative aspect-video bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/20 dark:to-pink-500/20 flex items-center justify-center overflow-hidden">
               {listing.preview ? (
-                <img src={listing.preview} alt={listing.name} className="w-full h-full object-cover" />
+                <Image 
+                  src={listing.preview} 
+                  alt={listing.name || listing.filename || 'Listing preview'} 
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
               ) : (
                 <div className="flex flex-col items-center gap-3">
                   <svg className="w-20 h-20 text-muted-foreground/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -436,7 +469,7 @@ export default function ListingDetail() {
                 </Button>
 
                 <p className="text-xs text-purple-400/50 text-center font-mono">
-                  Click "PAY NOW" to send payment with memo automatically
+                  Click &quot;PAY NOW&quot; to send payment with memo automatically
                 </p>
               </div>
             )}

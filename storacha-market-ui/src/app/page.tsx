@@ -75,7 +75,7 @@ export default function Page() {
           <>
             {data.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {data.map((it: any) => <ListingCard key={it._id} item={it} />)}
+                {data.map((it: { _id: string; name?: string; filename?: string; description?: string; preview?: string; priceLamports: number }) => <ListingCard key={it._id} item={it} />)}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[400px] text-center border border-purple-500/10 rounded-2xl bg-purple-500/5">
