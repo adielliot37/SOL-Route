@@ -60,6 +60,9 @@ async function start() {
   
   const app = express();
 
+  // Trust proxy for Vercel and reverse proxies (required for rate limiting and IP detection)
+  app.set('trust proxy', true);
+
   // Sentry request handler must be first
   if (process.env.SENTRY_DSN) {
     app.use(Sentry.Handlers.requestHandler());
@@ -77,10 +80,11 @@ async function start() {
       if (!origin && process.env.NODE_ENV !== 'production') {
         return callback(null, true);
       }
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow if origin is in allowed list or if no origin (server-to-server)
+      if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        logger.warn({ origin }, 'CORS blocked origin');
+        logger.warn({ origin, allowedOrigins }, 'CORS blocked origin');
         callback(new Error('Not allowed by CORS'));
       }
     },

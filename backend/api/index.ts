@@ -29,6 +29,9 @@ if (process.env.SENTRY_DSN) {
 // Create Express app
 const app = express();
 
+// Trust proxy for Vercel (required for rate limiting and IP detection)
+app.set('trust proxy', true);
+
 // Initialize MongoDB connection (reuse connection if exists)
 let isConnected = false;
 
@@ -58,9 +61,15 @@ app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',').map(o => o.trim()) || [];
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (mobile apps, Postman, etc.) in development
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    // Allow if origin is in allowed list or if no origin (server-to-server)
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      logger.warn({ origin, allowedOrigins }, 'CORS blocked origin');
       callback(new Error('Not allowed by CORS'));
     }
   },
