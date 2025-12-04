@@ -149,13 +149,13 @@ async function start() {
 
   // Rate limiting
   app.use('/api', apiLimiter);
-  app.use('/auth', strictLimiter);
+  app.use('/api/auth', strictLimiter);
 
   // Routes
   app.use('/api/listings', listings);
   app.use('/api/purchase', purchase);
   app.use('/api/delivery', delivery);
-  app.use('/auth', auth);
+  app.use('/api/auth', auth);
   app.use('/api/reviews', reviews);
 
   // Sentry error handler must be before other error handlers
