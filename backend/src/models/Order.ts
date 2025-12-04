@@ -10,7 +10,7 @@ const OrderSchema = new Schema({
     expectedLamports: Number,
     toWallet: String,
     memo: String,            // same as orderId
-    txSig: { type: String, index: true },           // once verified
+    txSig: { type: String },           // once verified
     confirmedAt: Date
   },
   sealedKeyB64: String,       // encrypted-to-buyer AES key (after payment)
