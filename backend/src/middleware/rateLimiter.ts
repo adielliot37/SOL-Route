@@ -19,7 +19,8 @@ const createRateLimiter = (config: any) => {
     // This is safe because we only trust Vercel's proxy, not all proxies
     validate: {
       trustProxy: false, // Disable trust proxy validation since we've configured it safely
-    },  });
+    },
+  });
 };
 
 // General API rate limiter - very lenient
