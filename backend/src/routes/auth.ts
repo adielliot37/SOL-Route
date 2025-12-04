@@ -58,7 +58,8 @@ router.get('/profile/:wallet', async (req, res) => {
     // Optimize: Don't populate purchaseHistory here - it's fetched separately
     const user = await User.findOne({ wallet: req.params.wallet })
       .select('wallet createdAt signatureVerified lastSignedMessage')
-      .lean(); // Use lean() for faster queries
+      .lean()
+      .maxTimeMS(5000); // Use lean() for faster queries
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -81,7 +82,8 @@ router.get('/check-user/:wallet', async (req, res) => {
     // Optimize: Only select needed fields and use lean() for faster queries
     const user = await User.findOne({ wallet: req.params.wallet })
       .select('signatureVerified')
-      .lean();
+      .lean()
+      .maxTimeMS(5000);
     return res.json({ exists: !!user, verified: user?.signatureVerified || false });
   } catch (e: any) {
     logger.error({ error: e.message, wallet: req.params.wallet }, 'Error checking user');

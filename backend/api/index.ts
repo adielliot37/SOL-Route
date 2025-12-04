@@ -41,7 +41,13 @@ async function connectDB() {
   }
 
   try {
-    await mongoose.connect(process.env.MONGO_URI!);
+    await mongoose.connect(process.env.MONGO_URI!, {
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 7000,
+      connectTimeoutMS: 3000,
+      maxPoolSize: 10,
+      minPoolSize: 1,
+    });
     isConnected = true;
     logger.info('✓ Connected to MongoDB');
   } catch (error: any) {
