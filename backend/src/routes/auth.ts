@@ -55,11 +55,20 @@ router.post('/verify-wallet', async (req, res) => {
 
 router.get('/profile/:wallet', async (req, res) => {
   try {
-    // Optimize: Don't populate purchaseHistory here - it's fetched separately
+    // Optimize: Use countDocuments first for faster check, then fetch if exists
+    // This is faster for non-existent users
+    const exists = await User.countDocuments({ wallet: req.params.wallet })
+      .maxTimeMS(2000); // 2 second max for existence check
+    
+    if (!exists) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Only fetch full data if user exists
     const user = await User.findOne({ wallet: req.params.wallet })
       .select('wallet createdAt signatureVerified lastSignedMessage')
       .lean()
-      .maxTimeMS(5000); // Use lean() for faster queries
+      .maxTimeMS(2000); // 2 second max query time
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -72,22 +81,37 @@ router.get('/profile/:wallet', async (req, res) => {
     });
   } catch (e: any) {
     logger.error({ error: e.message, wallet: req.params.wallet }, 'Error fetching profile');
-    return res.status(500).json({ error: e.message });
+    // If it's a timeout error, return 404 (treat as user not found to trigger auto-verify)
+    if (e.name === 'MongoServerError' && (e.code === 50 || e.code === 50)) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    // For other errors, return 404 to allow auto-verification to proceed
+    return res.status(404).json({ error: 'User not found' });
   }
 });
 
 // Check if user exists (for determining registration vs login)
 router.get('/check-user/:wallet', async (req, res) => {
   try {
-    // Optimize: Only select needed fields and use lean() for faster queries
+    // Optimize: Use countDocuments for fastest existence check
+    const exists = await User.countDocuments({ wallet: req.params.wallet })
+      .maxTimeMS(2000); // 2 second max
+    
+    if (!exists) {
+      return res.json({ exists: false, verified: false });
+    }
+
+    // Only fetch verification status if user exists
     const user = await User.findOne({ wallet: req.params.wallet })
       .select('signatureVerified')
       .lean()
-      .maxTimeMS(5000);
-    return res.json({ exists: !!user, verified: user?.signatureVerified || false });
+      .maxTimeMS(2000);
+    
+    return res.json({ exists: true, verified: user?.signatureVerified || false });
   } catch (e: any) {
     logger.error({ error: e.message, wallet: req.params.wallet }, 'Error checking user');
-    return res.status(500).json({ error: e.message });
+    // Return exists: false on error to allow registration flow
+    return res.json({ exists: false, verified: false });
   }
 });
 
