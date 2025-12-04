@@ -55,9 +55,10 @@ router.post('/verify-wallet', async (req, res) => {
 
 router.get('/profile/:wallet', async (req, res) => {
   try {
+    // Optimize: Don't populate purchaseHistory here - it's fetched separately
     const user = await User.findOne({ wallet: req.params.wallet })
-      .populate('purchaseHistory.listingId', 'filename cid')
-      .populate('purchaseHistory.orderId');
+      .select('wallet createdAt signatureVerified lastSignedMessage')
+      .lean(); // Use lean() for faster queries
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -66,10 +67,10 @@ router.get('/profile/:wallet', async (req, res) => {
     return res.json({
       wallet: user.wallet,
       createdAt: user.createdAt,
-      signatureVerified: user.signatureVerified,
-      purchaseHistory: user.purchaseHistory
+      signatureVerified: user.signatureVerified || false
     });
   } catch (e: any) {
+    logger.error({ error: e.message, wallet: req.params.wallet }, 'Error fetching profile');
     return res.status(500).json({ error: e.message });
   }
 });
@@ -77,9 +78,13 @@ router.get('/profile/:wallet', async (req, res) => {
 // Check if user exists (for determining registration vs login)
 router.get('/check-user/:wallet', async (req, res) => {
   try {
-    const user = await User.findOne({ wallet: req.params.wallet });
+    // Optimize: Only select needed fields and use lean() for faster queries
+    const user = await User.findOne({ wallet: req.params.wallet })
+      .select('signatureVerified')
+      .lean();
     return res.json({ exists: !!user, verified: user?.signatureVerified || false });
   } catch (e: any) {
+    logger.error({ error: e.message, wallet: req.params.wallet }, 'Error checking user');
     return res.status(500).json({ error: e.message });
   }
 });
@@ -92,15 +97,20 @@ router.post('/disconnect', async (req, res) => {
       return res.status(400).json({ error: 'Missing wallet address' });
     }
 
-    const user = await User.findOne({ wallet });
-    if (user) {
-      user.signatureVerified = false;
-      user.lastSignedMessage = '';
-      await user.save();
-    }
+    // Optimize: Use updateOne instead of find + save for better performance
+    await User.updateOne(
+      { wallet },
+      { 
+        $set: { 
+          signatureVerified: false,
+          lastSignedMessage: ''
+        }
+      }
+    );
 
     return res.json({ success: true, message: 'Wallet disconnected successfully' });
   } catch (e: any) {
+    logger.error({ error: e.message, wallet: req.body.wallet }, 'Error disconnecting wallet');
     return res.status(500).json({ error: e.message });
   }
 });
