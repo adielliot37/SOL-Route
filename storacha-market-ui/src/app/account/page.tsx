@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import bs58 from 'bs58'
-import { api } from '@/lib/api'
+import { api, getBackendUrl } from '@/lib/api'
 import { openSealedKeyB64 } from '@/lib/crypto'
 
 interface PurchaseHistory {
@@ -68,7 +68,7 @@ export default function AccountPage() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/purchase-history/${publicKey.toBase58()}`)
+      const response = await fetch(`${getBackendUrl()}/auth/purchase-history/${publicKey.toBase58()}`)
       if (response.ok) {
         const data = await response.json()
         setPurchaseHistory(data.purchaseHistory)
@@ -86,7 +86,7 @@ export default function AccountPage() {
     setAutoVerifying(true)
     try {
       // Check if user exists to determine message type
-      const checkResponse = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/check-user/${publicKey.toBase58()}`)
+      const checkResponse = await fetch(`${getBackendUrl()}/auth/check-user/${publicKey.toBase58()}`)
       const checkData = await checkResponse.ok ? await checkResponse.json() : { exists: false }
       
       // Use different messages for registration vs login
@@ -98,7 +98,7 @@ export default function AccountPage() {
       const messageBytes = new TextEncoder().encode(message)
       const signature = await signMessage(messageBytes)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/verify-wallet`, {
+      const response = await fetch(`${getBackendUrl()}/auth/verify-wallet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -138,7 +138,7 @@ export default function AccountPage() {
     if (!publicKey) return
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/profile/${publicKey.toBase58()}`)
+      const response = await fetch(`${getBackendUrl()}/auth/profile/${publicKey.toBase58()}`)
       if (response.ok) {
         const data = await response.json()
         setUser({
@@ -169,7 +169,7 @@ export default function AccountPage() {
 
     setLoadingListings(true)
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/listings/seller/${publicKey.toBase58()}`)
+      const response = await fetch(`${getBackendUrl()}/api/listings/seller/${publicKey.toBase58()}`)
       if (response.ok) {
         const data = await response.json()
         setListings(data)
@@ -185,7 +185,7 @@ export default function AccountPage() {
     if (!publicKey) return
 
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/disconnect`, {
+      await fetch(`${getBackendUrl()}/auth/disconnect`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wallet: publicKey.toBase58() })
