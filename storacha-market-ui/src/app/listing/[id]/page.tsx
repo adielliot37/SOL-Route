@@ -54,14 +54,14 @@ export default function ListingDetail() {
   const [userPassword, setUserPassword] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get(`/listings/${id}`).then(r=>setListing(r.data))
+    api.get(`/api/listings/${id}`).then(r=>setListing(r.data))
   }, [id])
   useEffect(() => {
     async function checkExistingPurchase() {
       if (!publicKey || !id) return
 
       try {
-        const response = await api.get(`/purchase/check/${id}/${publicKey.toBase58()}`)
+        const response = await api.get(`/api/purchase/check/${id}/${publicKey.toBase58()}`)
         if (response.data.purchased) {
         setDelivery(response.data.delivery)
         }
@@ -100,7 +100,7 @@ export default function ListingDetail() {
     setLoading(true)
     try {
       const { pubB64 } = await getOrCreateX25519(password)
-      const r = await api.post('/purchase/init', {
+      const r = await api.post('/api/purchase/init', {
         listingId: id,
         buyerEncPubKeyB64: pubB64,
         buyerWallet: publicKey!.toBase58()
@@ -181,7 +181,7 @@ export default function ListingDetail() {
     
     setLoading(true)
     try {
-      const r = await api.post('/delivery/verify-and-deliver', { orderId: order.orderId })
+      const r = await api.post('/api/delivery/verify-and-deliver', { orderId: order.orderId })
       if (r.data.ok) {
         setDelivery(r.data)
         showToast('Payment verified! You can now decrypt and download your file.', 'success')
@@ -194,7 +194,7 @@ export default function ListingDetail() {
         showToast('This transaction was already processed. Checking delivery...', 'warning')
         // Try to fetch delivery again
         try {
-          const checkResp = await api.get(`/purchase/check/${id}/${publicKey?.toBase58()}`)
+          const checkResp = await api.get(`/api/purchase/check/${id}/${publicKey?.toBase58()}`)
           if (checkResp.data.purchased) {
             setDelivery(checkResp.data.delivery)
             showToast('Payment already verified! You can decrypt and download.', 'success')
@@ -235,7 +235,7 @@ export default function ListingDetail() {
         password
       )
       refreshKeyExpiry()
-      const resp = await api.get(`/listings/${id}/file`, { timeout: 120000 })
+      const resp = await api.get(`/api/listings/${id}/file`, { timeout: 120000 })
 
       let base64Blob = resp.data.file || resp.data
 
