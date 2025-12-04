@@ -61,7 +61,7 @@ async function start() {
   const app = express();
 
   // Trust proxy for Vercel and reverse proxies (required for rate limiting and IP detection)
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1);
 
   // Sentry request handler must be first
   if (process.env.SENTRY_DSN) {

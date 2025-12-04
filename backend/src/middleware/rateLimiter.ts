@@ -15,7 +15,11 @@ const createRateLimiter = (config: any) => {
     // Don't add rate limit headers in development
     standardHeaders: isRateLimitEnabled,
     legacyHeaders: false,
-  });
+    // Skip trust proxy validation warning - we've configured trust proxy: 1 (only first proxy)
+    // This is safe because we only trust Vercel's proxy, not all proxies
+    validate: {
+      trustProxy: false, // Disable trust proxy validation since we've configured it safely
+    },  });
 };
 
 // General API rate limiter - very lenient
@@ -25,7 +29,11 @@ export const apiLimiter = createRateLimiter({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: isRateLimitEnabled,
   legacyHeaders: false,
-  skip: () => !isRateLimitEnabled && isDevelopment,
+    // Skip trust proxy validation warning - we've configured trust proxy: 1 (only first proxy)
+    // This is safe because we only trust Vercel's proxy, not all proxies
+    validate: {
+      trustProxy: false, // Disable trust proxy validation since we've configured it safely
+    },  skip: () => !isRateLimitEnabled && isDevelopment,
   handler: (req, res) => {
     if (isRateLimitEnabled || !isDevelopment) {
       logger.warn({ ip: req.ip, path: req.path }, 'Rate limit exceeded');
@@ -43,7 +51,11 @@ export const strictLimiter = createRateLimiter({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: isRateLimitEnabled,
   legacyHeaders: false,
-  skip: () => !isRateLimitEnabled && isDevelopment,
+    // Skip trust proxy validation warning - we've configured trust proxy: 1 (only first proxy)
+    // This is safe because we only trust Vercel's proxy, not all proxies
+    validate: {
+      trustProxy: false, // Disable trust proxy validation since we've configured it safely
+    },  skip: () => !isRateLimitEnabled && isDevelopment,
   handler: (req, res) => {
     if (isRateLimitEnabled || !isDevelopment) {
       logger.warn({ ip: req.ip, path: req.path }, 'Strict rate limit exceeded');
@@ -61,7 +73,11 @@ export const uploadLimiter = createRateLimiter({
   message: 'Too many file uploads from this IP, please try again later.',
   standardHeaders: isRateLimitEnabled,
   legacyHeaders: false,
-  skip: () => !isRateLimitEnabled && isDevelopment,
+    // Skip trust proxy validation warning - we've configured trust proxy: 1 (only first proxy)
+    // This is safe because we only trust Vercel's proxy, not all proxies
+    validate: {
+      trustProxy: false, // Disable trust proxy validation since we've configured it safely
+    },  skip: () => !isRateLimitEnabled && isDevelopment,
   handler: (req, res) => {
     if (isRateLimitEnabled || !isDevelopment) {
       logger.warn({ ip: req.ip, path: req.path }, 'Upload rate limit exceeded');

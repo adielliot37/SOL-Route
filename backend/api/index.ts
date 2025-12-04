@@ -30,7 +30,7 @@ if (process.env.SENTRY_DSN) {
 const app = express();
 
 // Trust proxy for Vercel (required for rate limiting and IP detection)
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 // Initialize MongoDB connection (reuse connection if exists)
 let isConnected = false;
