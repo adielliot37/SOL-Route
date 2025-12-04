@@ -22,22 +22,36 @@ export async function storachaUpload(base64: string, name: string, publishToFile
       throw new Error(`Upload failed: ${data.error.message || JSON.stringify(data.error)}`);
     }
 
-  if (!data.result) {
-    throw new Error('Invalid response from Storacha: missing result');
-  }
+    if (!data.result) {
+      throw new Error('Invalid response from Storacha: missing result');
+    }
 
-  let result;
-  if (data.result.content && Array.isArray(data.result.content)) {
-    result = JSON.parse(data.result.content[0].text);
-  } else if (typeof data.result === 'string') {
-    result = JSON.parse(data.result);
-  } else if (data.result.text) {
-    result = JSON.parse(data.result.text);
-  } else {
-    result = data.result;
-  }
+    let result;
+    if (data.result.content && Array.isArray(data.result.content)) {
+      result = JSON.parse(data.result.content[0].text);
+    } else if (typeof data.result === 'string') {
+      result = JSON.parse(data.result);
+    } else if (data.result.text) {
+      result = JSON.parse(data.result.text);
+    } else {
+      result = data.result;
+    }
 
-  return { cid: result.root['/'] };
+    let cid: string;
+    if (result.root && result.root['/']) {
+      cid = result.root['/'];
+    } else if (result.root && typeof result.root === 'string') {
+      cid = result.root;
+    } else if (result.cid) {
+      cid = result.cid;
+    } else if (typeof result === 'string') {
+      cid = result;
+    } else {
+      console.error('Unexpected Storacha result format:', result);
+      throw new Error('Invalid Storacha response: could not extract CID');
+    }
+
+    return { cid };
   } catch (error: any) {
     if (error.response?.data) {
       console.error('Storacha API error response:', JSON.stringify(error.response.data, null, 2));
