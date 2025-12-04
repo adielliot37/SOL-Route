@@ -150,7 +150,7 @@ export default function AccountPage() {
         if (!data.signatureVerified && signMessage && !autoVerifying && !verifying) {
           setTimeout(() => autoVerifyWallet(), 500) // Small delay to avoid race conditions
         }
-      } else if (response.status === 404) {
+      } else if (response.status === 404 || response.status === 504) {
         // User doesn't exist, trigger auto-verify for registration
         if (signMessage && !autoVerifying && !verifying) {
           setTimeout(() => autoVerifyWallet(), 500) // Small delay to avoid race conditions
