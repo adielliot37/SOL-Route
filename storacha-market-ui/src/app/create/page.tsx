@@ -80,7 +80,7 @@ export default function CreatePage() {
       // Convert SOL to lamports
       const priceLamports = Math.floor(parseFloat(price) * 1_000_000_000)
 
-      const r = await api.post('/api/listings/create', {
+      const r = await api.post('/listings/create', {
         sellerWallet: publicKey.toBase58(),
         filename: file.name,
         name,

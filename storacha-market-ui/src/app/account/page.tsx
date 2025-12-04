@@ -206,7 +206,7 @@ export default function AccountPage() {
     setDownloadingId(purchase.listingId._id)
     try {
       // Get the delivery data (sealed key)
-      const checkResp = await api.get(`/api/purchase/check/${purchase.listingId._id}/${publicKey.toBase58()}`)
+      const checkResp = await api.get(`/purchase/check/${purchase.listingId._id}/${publicKey.toBase58()}`)
 
       if (!checkResp.data.purchased) {
         showToast('Purchase not found. Please contact support.', 'error')
@@ -219,7 +219,7 @@ export default function AccountPage() {
       const K = await openSealedKeyB64(delivery.sealedKeyB64)
 
       // Fetch the encrypted file
-      const fileResp = await api.get(`/api/listings/${purchase.listingId._id}/file`, { timeout: 120000 })
+      const fileResp = await api.get(`/listings/${purchase.listingId._id}/file`, { timeout: 120000 })
 
       let base64Blob = fileResp.data.file || fileResp.data
 

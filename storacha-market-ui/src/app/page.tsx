@@ -4,7 +4,7 @@ import { api } from '@/lib/api'
 import ListingCard from '@/components/listing-card'
 
 export default function Page() {
-  const { data, isLoading } = useSWR('listings', () => api.get('/api/listings').then(r => r.data))
+  const { data, isLoading } = useSWR('listings', () => api.get('/listings').then(r => r.data))
 
   return (
     <main className="mx-auto max-w-7xl">
