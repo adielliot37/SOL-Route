@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import bs58 from 'bs58'
-import { api, getBackendUrl } from '@/lib/api'
+import { api, getBackendUrl, buildApiUrl } from '@/lib/api'
 import { openSealedKeyB64 } from '@/lib/crypto'
 
 interface PurchaseHistory {
@@ -169,7 +169,7 @@ export default function AccountPage() {
 
     setLoadingListings(true)
     try {
-      const response = await fetch(`${getBackendUrl()}/api/listings/seller/${publicKey.toBase58()}`)
+      const response = await fetch(buildApiUrl(`/api/listings/seller/${publicKey.toBase58()}`))
       if (response.ok) {
         const data = await response.json()
         setListings(data)
