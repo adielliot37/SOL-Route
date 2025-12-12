@@ -4,6 +4,7 @@ const ListingSchema = new Schema({
   sellerId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
   sellerWallet: { type: String, required: true, index: true },   // base58
   cid: { type: String, required: true, index: true },            // IPFS CID of ciphertext
+  contentHash: { type: String, index: true },
   filename: String,
   name: { type: String, required: true },           // Display name
   description: { type: String, required: true },    // Description
@@ -35,5 +36,6 @@ const ListingSchema = new Schema({
 ListingSchema.index({ sellerWallet: 1, createdAt: -1 });
 ListingSchema.index({ createdAt: -1 });
 ListingSchema.index({ priceLamports: 1, createdAt: -1 });
+ListingSchema.index({ contentHash: 1 }, { unique: true, partialFilterExpression: { contentHash: { $type: 'string' } } });
 
 export default model('Listing', ListingSchema);
