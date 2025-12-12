@@ -17,6 +17,8 @@ export default function CreatePage() {
   const [description, setDescription] = useState<string>('')
   const [preview, setPreview] = useState<string>('')
   const [price, setPrice] = useState<string>('0.01') // SOL
+  const [category, setCategory] = useState<string>('')
+  const [tagsText, setTagsText] = useState<string>('')
   const [loading, setLoading] = useState(false)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -80,6 +82,7 @@ export default function CreatePage() {
       // Convert SOL to lamports
       const priceLamports = Math.floor(parseFloat(price) * 1_000_000_000)
 
+      const tags = Array.from(new Set(tagsText.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0))).slice(0, 10)
       const r = await api.post('/listings/create', {
         sellerWallet: publicKey.toBase58(),
         filename: file.name,
@@ -88,7 +91,9 @@ export default function CreatePage() {
         preview: preview || undefined,
         mime: file.type || 'application/octet-stream',
         base64File,
-        priceLamports
+        priceLamports,
+        category: category.trim() ? category.trim().toLowerCase() : undefined,
+        tags
       })
       showToast(`Listing created successfully! CID: ${r.data.cid.substring(0, 8)}...`, 'success')
 
@@ -99,6 +104,8 @@ export default function CreatePage() {
         setDescription('')
         setPreview('')
         setPrice('0.01')
+        setCategory('')
+        setTagsText('')
         // Reset file input
         const fileInput = document.getElementById('file') as HTMLInputElement
         if (fileInput) fileInput.value = ''
@@ -127,6 +134,33 @@ export default function CreatePage() {
             onChange={e => setName(e.target.value)}
             className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
           />
+        </div>
+
+        <div>
+          <Label htmlFor="category" className="text-sm font-semibold text-purple-300">
+            Category
+          </Label>
+          <Input
+            id="category"
+            placeholder="e.g. images, documents, audio"
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="tags" className="text-sm font-semibold text-purple-300">
+            Tags (comma-separated)
+          </Label>
+          <Input
+            id="tags"
+            placeholder="e.g. nature, piano, pdf"
+            value={tagsText}
+            onChange={e => setTagsText(e.target.value)}
+            className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+          />
+          <p className="text-xs text-purple-400/60 mt-2">Up to 10 tags</p>
         </div>
 
         <div>

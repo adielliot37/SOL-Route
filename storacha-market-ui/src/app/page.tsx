@@ -1,10 +1,26 @@
 'use client'
 import useSWR from 'swr'
 import { api } from '@/lib/api'
+import { useState, useMemo } from 'react'
 import ListingCard from '@/components/listing-card'
 
 export default function Page() {
-  const { data, isLoading } = useSWR('listings', () => api.get('/listings').then(r => r.data))
+  const [q, setQ] = useState('')
+  const [category, setCategory] = useState('')
+  const [tagsText, setTagsText] = useState('')
+  const [sort, setSort] = useState('recent')
+
+  const query = useMemo(() => {
+    const params = new URLSearchParams()
+    if (q.trim()) params.set('q', q.trim())
+    if (category.trim()) params.set('category', category.trim().toLowerCase())
+    const tags = Array.from(new Set(tagsText.split(',').map(t => t.trim().toLowerCase()).filter(Boolean))).slice(0, 10)
+    if (tags.length) params.set('tags', tags.join(','))
+    if (sort) params.set('sort', sort)
+    return params.toString()
+  }, [q, category, tagsText, sort])
+
+  const { data, isLoading } = useSWR(['listings', query], () => api.get(`/listings${query ? `?${query}` : ''}`).then(r => r.data))
 
   return (
     <main className="mx-auto max-w-7xl">
@@ -59,6 +75,37 @@ export default function Page() {
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">ACTIVE LISTINGS</h2>
             <p className="text-purple-400/60 font-mono text-sm">Browse the marketplace</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              placeholder="Search"
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              className="px-3 py-2 rounded bg-black/40 border border-purple-500/30 text-white placeholder:text-purple-300/50"
+            />
+            <input
+              placeholder="Category"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="px-3 py-2 rounded bg-black/40 border border-purple-500/30 text-white placeholder:text-purple-300/50"
+            />
+            <input
+              placeholder="Tags (comma)"
+              value={tagsText}
+              onChange={e => setTagsText(e.target.value)}
+              className="px-3 py-2 rounded bg-black/40 border border-purple-500/30 text-white placeholder:text-purple-300/50"
+            />
+            <select
+              value={sort}
+              onChange={e => setSort(e.target.value)}
+              className="px-3 py-2 rounded bg-black/40 border border-purple-500/30 text-white"
+            >
+              <option value="recent">Recent</option>
+              <option value="price_asc">Price ↑</option>
+              <option value="price_desc">Price ↓</option>
+              <option value="rating_desc">Rating ↓</option>
+              <option value="rating_asc">Rating ↑</option>
+            </select>
           </div>
         </div>
 
