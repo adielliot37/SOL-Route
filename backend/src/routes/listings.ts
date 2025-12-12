@@ -18,7 +18,41 @@ const fileUploadParser = json({ limit: '50mb' });
 
 router.get('/', async (req, res) => {
   try {
-    const listings = await Listing.find({}).sort({ createdAt: -1 });
+    const { q, category, tags, minPrice, maxPrice, sort = 'recent', limit = '20', offset = '0' } = req.query as Record<string, string>;
+
+    const query: any = {};
+    if (q && q.trim()) {
+      const r = new RegExp(q.trim(), 'i');
+      query.$or = [{ name: r }, { description: r }];
+    }
+    if (category && category.trim()) {
+      query.category = category.trim().toLowerCase();
+    }
+    if (tags && tags.trim()) {
+      const list = Array.from(new Set(tags.split(',').map(t => t.trim().toLowerCase()).filter(Boolean)));
+      if (list.length > 0) {
+        query.tags = { $in: list };
+      }
+    }
+    if (minPrice) {
+      const mp = Number(minPrice);
+      if (!isNaN(mp)) query.priceLamports = { ...(query.priceLamports || {}), $gte: mp };
+    }
+    if (maxPrice) {
+      const xp = Number(maxPrice);
+      if (!isNaN(xp)) query.priceLamports = { ...(query.priceLamports || {}), $lte: xp };
+    }
+
+    let sortObj: any = { createdAt: -1 };
+    if (sort === 'price_asc') sortObj = { priceLamports: 1, createdAt: -1 };
+    else if (sort === 'price_desc') sortObj = { priceLamports: -1, createdAt: -1 };
+    else if (sort === 'rating_desc') sortObj = { avgRating: -1, createdAt: -1 };
+    else if (sort === 'rating_asc') sortObj = { avgRating: 1, createdAt: -1 };
+
+    const lim = Math.max(1, Math.min(100, parseInt(String(limit), 10) || 20));
+    const off = Math.max(0, parseInt(String(offset), 10) || 0);
+
+    const listings = await Listing.find(query).sort(sortObj).skip(off).limit(lim);
     return res.json(listings);
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
@@ -113,7 +147,7 @@ router.get('/:id/file', async (req, res) => {
 router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
   try {
     logger.info({ sellerWallet: req.body.sellerWallet }, 'Creating listing...');
-    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
+    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports, category, tags } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
     }
@@ -135,6 +169,28 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
     }
     if (typeof filename !== 'string' || filename.length === 0 || filename.length > 255) {
       return res.status(400).json({ error: 'Filename must be between 1 and 255 characters' });
+    }
+    let normalizedCategory: string | undefined = undefined;
+    if (category && typeof category === 'string') {
+      const c = category.trim().toLowerCase();
+      if (c.length > 0) {
+        if (c.length > 50) {
+          return res.status(400).json({ error: 'Category must be at most 50 characters' });
+        }
+        normalizedCategory = c;
+      }
+    }
+    let normalizedTags: string[] | undefined = undefined;
+    if (Array.isArray(tags)) {
+      const clean = tags
+        .map((t: any) => String(t).trim().toLowerCase())
+        .filter((t: string) => t.length > 0 && t.length <= 30);
+      const uniq = Array.from(new Set(clean)).slice(0, 10);
+      normalizedTags = uniq.length > 0 ? uniq : undefined;
+    } else if (typeof tags === 'string') {
+      const list = tags.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0 && t.length <= 30);
+      const uniq = Array.from(new Set(list)).slice(0, 10);
+      normalizedTags = uniq.length > 0 ? uniq : undefined;
     }
 
     const fileBuf = Buffer.from(base64File, 'base64');
@@ -184,7 +240,9 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
       mime: mime || 'application/octet-stream',
       size: fileBuf.length,
       priceLamports,
-      metadata
+      metadata,
+      category: normalizedCategory,
+      tags: normalizedTags
     });
 
     // Use KMS to wrap the encryption key

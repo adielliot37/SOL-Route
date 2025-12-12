@@ -12,6 +12,8 @@ const ListingSchema = new Schema({
   mime: String,
   size: Number,
   priceLamports: { type: Number, required: true, index: true },
+  category: { type: String, index: true },
+  tags: { type: [String], index: true },
 
   // File metadata (extracted before encryption)
   metadata: {
@@ -35,5 +37,7 @@ const ListingSchema = new Schema({
 ListingSchema.index({ sellerWallet: 1, createdAt: -1 });
 ListingSchema.index({ createdAt: -1 });
 ListingSchema.index({ priceLamports: 1, createdAt: -1 });
+ListingSchema.index({ category: 1, createdAt: -1 });
+ListingSchema.index({ tags: 1, createdAt: -1 });
 
 export default model('Listing', ListingSchema);
