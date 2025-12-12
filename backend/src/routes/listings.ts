@@ -1,4 +1,5 @@
 import { Router, json } from 'express';
+import * as crypto from 'crypto';
 import Listing from '../models/Listing.js';
 import Order from '../models/Order.js';
 import KeyVault from '../models/KeyVault.js';
@@ -145,6 +146,12 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
 
+    const contentHash = crypto.createHash('sha256').update(fileBuf).digest('hex');
+    const existing = await Listing.findOne({ contentHash });
+    if (existing) {
+      return res.status(409).json({ error: 'Duplicate file detected', listingId: existing._id, cid: existing.cid });
+    }
+
     // Validate preview URL if provided
     if (preview && typeof preview === 'string' && preview.startsWith('http')) {
       const urlValidation = validatePreviewUrl(preview);
@@ -177,6 +184,7 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
       sellerId,
       sellerWallet,
       cid,
+      contentHash,
       filename: filename.trim(),
       name: name.trim(),
       description: description.trim(),
