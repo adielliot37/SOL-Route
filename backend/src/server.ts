@@ -26,19 +26,20 @@ if (process.env.SENTRY_DSN) {
 }
 
 let server: any;
+let mongod: any;
 
 async function start() {
-  // Validate required environment variables
-  const requiredEnvVars = ['MONGO_URI'];
-  const missing = requiredEnvVars.filter((key) => !process.env[key]);
-  if (missing.length > 0) {
-    logger.error({ missing }, 'Missing required environment variables');
-    process.exit(1);
-  }
-
-  logger.info('Connecting to MongoDB...');
+  const useMemory = process.env.USE_MEMORY_DB === 'true' || !process.env.MONGO_URI;
+  logger.info({ useMemory }, 'Connecting to MongoDB...');
   try {
-    await mongoose.connect(process.env.MONGO_URI!);
+    if (useMemory) {
+      const { MongoMemoryServer } = await import('mongodb-memory-server');
+      mongod = await MongoMemoryServer.create();
+      const uri = mongod.getUri();
+      await mongoose.connect(uri);
+    } else {
+      await mongoose.connect(process.env.MONGO_URI!);
+    }
     logger.info('✓ Connected to MongoDB');
   } catch (error: any) {
     logger.error({ error: error.message }, 'Failed to connect to MongoDB');
@@ -194,6 +195,10 @@ async function start() {
       try {
         await mongoose.connection.close();
         logger.info('MongoDB connection closed');
+        if (mongod) {
+          await mongod.stop();
+          logger.info('In-memory MongoDB stopped');
+        }
         process.exit(0);
       } catch (error: any) {
         logger.error({ error: error.message }, 'Error during shutdown');

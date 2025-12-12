@@ -113,7 +113,7 @@ router.get('/:id/file', async (req, res) => {
 router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
   try {
     logger.info({ sellerWallet: req.body.sellerWallet }, 'Creating listing...');
-    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
+    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports, gate } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
     }
@@ -143,6 +143,26 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
     const validation = validateFile(fileBuf, mime, filename);
     if (!validation.valid) {
       return res.status(400).json({ error: validation.error });
+    }
+
+    let gateConfig = undefined;
+    if (gate && typeof gate === 'object') {
+      if (gate.type === 'spl-token') {
+        if (typeof gate.mint !== 'string' || gate.mint.length === 0) {
+          return res.status(400).json({ error: 'Invalid gate.mint' });
+        }
+        const minAmount = Number(gate.minAmount || 1);
+        if (!Number.isFinite(minAmount) || minAmount <= 0) {
+          return res.status(400).json({ error: 'Invalid gate.minAmount' });
+        }
+        gateConfig = { type: 'spl-token', mint: gate.mint, minAmount };
+      } else if (gate.type === 'nft') {
+        const mints = Array.isArray(gate.mints) ? gate.mints.filter((m: any) => typeof m === 'string' && m.length > 0) : [];
+        if (mints.length === 0 || mints.length > 50) {
+          return res.status(400).json({ error: 'Invalid gate.mints' });
+        }
+        gateConfig = { type: 'nft', mints };
+      }
     }
 
     // Validate preview URL if provided
@@ -184,7 +204,8 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
       mime: mime || 'application/octet-stream',
       size: fileBuf.length,
       priceLamports,
-      metadata
+      metadata,
+      gate: gateConfig
     });
 
     // Use KMS to wrap the encryption key
