@@ -1,4 +1,4 @@
-import { Connection, PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { Connection, PublicKey, Transaction, SystemProgram } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 
@@ -99,4 +99,26 @@ export async function submitTransaction(serializedTransaction: Buffer): Promise<
   } catch (error) {
     throw error;
   }
+}
+
+export async function hasSplTokenBalance(ownerBase58: string, mintBase58: string, minAmount: number): Promise<boolean> {
+  const owner = new PublicKey(ownerBase58);
+  const mint = new PublicKey(mintBase58);
+  const accounts = await conn.getParsedTokenAccountsByOwner(owner, { mint });
+  let total = 0;
+  for (const a of accounts.value) {
+    const info: any = a.account.data.parsed.info;
+    const amount = Number(info.tokenAmount.amount);
+    const decimals = Number(info.tokenAmount.decimals);
+    total += amount / Math.pow(10, decimals);
+  }
+  return total >= minAmount;
+}
+
+export async function ownsAnyMint(ownerBase58: string, mints: string[]): Promise<boolean> {
+  for (const m of mints) {
+    const ok = await hasSplTokenBalance(ownerBase58, m, 1);
+    if (ok) return true;
+  }
+  return false;
 }

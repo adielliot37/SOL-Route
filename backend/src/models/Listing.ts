@@ -13,6 +13,15 @@ const ListingSchema = new Schema({
   size: Number,
   priceLamports: { type: Number, required: true, index: true },
 
+  gate: {
+    type: new Schema({
+      type: { type: String, enum: ['spl-token', 'nft'] },
+      mint: String,
+      minAmount: Number,
+      mints: [String]
+    }, { _id: false })
+  },
+
   // File metadata (extracted before encryption)
   metadata: {
     width: Number,        // For images/videos

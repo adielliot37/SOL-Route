@@ -96,7 +96,13 @@ export default function AccountPage() {
         : `Sign in to Storacha Market. Timestamp: ${Date.now()}`
       
       const messageBytes = new TextEncoder().encode(message)
-      const signature = await signMessage(messageBytes)
+      let signature: Uint8Array
+      try {
+        signature = await signMessage(messageBytes)
+      } catch (e) {
+        setVisible(true)
+        throw e
+      }
 
       const response = await fetch(buildApiUrl(`/api/auth/verify-wallet`), {
         method: 'POST',
@@ -124,15 +130,14 @@ export default function AccountPage() {
       }
     } catch (error) {
       const err = error as Error
-      // Don't show error if user cancelled
       if (err.message?.includes('User rejected') || err.message?.includes('User cancelled')) {
         return
       }
-      showToast('Authentication failed. Please try again.', 'error')
+      showToast('Authentication failed. Please open wallet and try again.', 'error')
     } finally {
       setAutoVerifying(false)
     }
-  }, [publicKey, signMessage, autoVerifying, verifying, loadPurchaseHistory, showToast])
+  }, [publicKey, signMessage, autoVerifying, verifying, loadPurchaseHistory, showToast, setVisible])
 
   const loadUserProfile = useCallback(async () => {
     if (!publicKey) return
@@ -376,6 +381,11 @@ export default function AccountPage() {
               </div>
             )}
           </div>
+          {!user?.signatureVerified && (
+            <div className="pt-4 mt-4 border-t">
+              <Button onClick={() => autoVerifyWallet()} size="sm">Verify Wallet</Button>
+            </div>
+          )}
         </div>
       </Card>
 

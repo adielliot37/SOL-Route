@@ -4,7 +4,7 @@ import Listing from '../models/Listing.js';
 import Order from '../models/Order.js';
 import User from '../models/User.js';
 import KeyVault from '../models/KeyVault.js';
-import { createPaymentTransaction, submitTransaction } from '../services/solana.js';
+import { createPaymentTransaction, submitTransaction, hasSplTokenBalance, ownsAnyMint } from '../services/solana.js';
 import { unwrapKeyWithServerKms, sealKeyToBuyer } from '../services/crypto.js';
 import { strictLimiter } from '../middleware/rateLimiter.js';
 import { logger } from '../utils/logger.js';
@@ -70,6 +70,20 @@ router.post('/init', strictLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Cannot purchase your own listing' });
     }
     
+    // Token gating
+    if (listing.gate?.type === 'spl-token') {
+      const mint = listing.gate.mint;
+      const minAmount = Number(listing.gate.minAmount || 1);
+      if (!mint || !(await hasSplTokenBalance(buyerWallet, mint, minAmount))) {
+        return res.status(403).json({ error: 'Access restricted by token gating' });
+      }
+    } else if (listing.gate?.type === 'nft') {
+      const mints = Array.isArray(listing.gate.mints) ? listing.gate.mints : [];
+      if (mints.length === 0 || !(await ownsAnyMint(buyerWallet, mints))) {
+        return res.status(403).json({ error: 'Access restricted by token gating' });
+      }
+    }
+
     // Check if already purchased
     const existingOrder = await Order.findOne({
       listingId,
@@ -116,6 +130,21 @@ router.post('/pay-direct', strictLimiter, async (req, res) => {
     const order = await Order.findOne({ orderId }).populate('listingId');
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if ((order.listingId as any)?.gate?.type === 'spl-token') {
+      const mint = (order.listingId as any).gate.mint;
+      const minAmount = Number((order.listingId as any).gate.minAmount || 1);
+      const buyer = order.buyerWallet;
+      if (!mint || !(await hasSplTokenBalance(buyer!, mint, minAmount))) {
+        return res.status(403).json({ error: 'Access restricted by token gating' });
+      }
+    } else if ((order.listingId as any)?.gate?.type === 'nft') {
+      const mints = Array.isArray((order.listingId as any).gate.mints) ? (order.listingId as any).gate.mints : [];
+      const buyer = order.buyerWallet;
+      if (mints.length === 0 || !(await ownsAnyMint(buyer!, mints))) {
+        return res.status(403).json({ error: 'Access restricted by token gating' });
+      }
     }
 
     if (order.status === 'PAID' || order.status === 'DELIVERED') {
