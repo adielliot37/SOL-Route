@@ -186,7 +186,7 @@ async function generateDocumentPreview(
   filename: string,
   mimeType: string
 ): Promise<PreviewResult> {
-  const extension = filename.split('.').pop()?.toUpperCase() || 'DOC';
+  const extension = (filename.split('.').pop()?.toUpperCase() || 'DOC').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   
   const svg = `
     <svg width="400" height="500" xmlns="http://www.w3.org/2000/svg">
@@ -211,11 +211,12 @@ async function generateDocumentPreview(
  */
 async function generateTextPreview(fileBuffer: Buffer): Promise<PreviewResult> {
   // Show first few lines of text
-  const text = fileBuffer.toString('utf-8', 0, 500);
+  const text = fileBuffer.toString('utf-8', 0, 500).replace(/[\r\0]/g, '');
   const lines = text.split('\n').slice(0, 15);
 
   const textElements = lines.map((line, i) => {
-    const escapedLine = line.substring(0, 50)
+    const cleaned = line.replace(/[^\x20-\x7E]/g, '')
+    const escapedLine = cleaned.substring(0, 50)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -246,8 +247,9 @@ async function generateGenericPreview(
   filename: string,
   mimeType: string
 ): Promise<PreviewResult> {
-  const displayName = filename.length > 30 ? filename.substring(0, 27) + '...' : filename;
-  const extension = filename.split('.').pop()?.toUpperCase() || 'FILE';
+  const rawName = filename.length > 30 ? filename.substring(0, 27) + '...' : filename;
+  const displayName = rawName.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const extension = (filename.split('.').pop()?.toUpperCase() || 'FILE').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   
   const svg = `
     <svg width="400" height="400" xmlns="http://www.w3.org/2000/svg">
