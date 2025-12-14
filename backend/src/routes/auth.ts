@@ -2,10 +2,12 @@ import { Router } from 'express';
 import User from '../models/User.js';
 import { verifySignature } from '../services/solana.js';
 import { logger } from '../utils/logger.js';
+import jwt from 'jsonwebtoken';
+import { clearAuthCookie } from '../middleware/auth.js';
 
 const router = Router();
 
-router.post('/verify-wallet', async (req, res) => {
+  router.post('/verify-wallet', async (req, res) => {
   try {
     const { wallet, message, signature, isLogin } = req.body;
     
@@ -35,6 +37,26 @@ router.post('/verify-wallet', async (req, res) => {
       user.lastSignedMessage = message;
       await user.save();
       logger.info({ wallet }, 'User logged in');
+    }
+
+    const secret = process.env.JWT_SECRET;
+    const expMinutes = Number(process.env.JWT_EXP_MINUTES || 15);
+    if (secret) {
+      const token = jwt.sign(
+        { sub: user.wallet, verified: true },
+        secret,
+        { expiresIn: `${expMinutes}m` }
+      );
+      const isProd = process.env.NODE_ENV === 'production';
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'lax',
+        maxAge: expMinutes * 60 * 1000,
+        path: '/',
+      });
+    } else {
+      logger.warn('JWT_SECRET not set; skipping session cookie');
     }
 
     return res.json({
@@ -134,6 +156,7 @@ router.post('/disconnect', async (req, res) => {
       }
     );
 
+    clearAuthCookie(res);
     return res.json({ success: true, message: 'Wallet disconnected successfully' });
   } catch (e: any) {
     logger.error({ error: e.message, wallet: req.body.wallet }, 'Error disconnecting wallet');
@@ -141,9 +164,13 @@ router.post('/disconnect', async (req, res) => {
   }
 });
 
-router.get('/purchase-history/:wallet', async (req, res) => {
+import { requireAuth } from '../middleware/auth.js';
+router.get('/purchase-history/:wallet', requireAuth, async (req, res) => {
   try {
     const wallet = req.params.wallet;
+    if (!req.user || req.user.wallet !== wallet) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     
     // Query Orders directly instead of relying on User.purchaseHistory
     // This is more reliable as it checks the source of truth
