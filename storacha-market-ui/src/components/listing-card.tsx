@@ -12,6 +12,7 @@ interface ListingItem {
   description?: string
   preview?: string
   priceLamports: number
+  euDataActCompliant?: boolean
 }
 
 export default function ListingCard({ item }: { item: ListingItem }) {
@@ -44,7 +45,7 @@ export default function ListingCard({ item }: { item: ListingItem }) {
           )}
 
           <div className="absolute top-2 right-2 flex flex-col gap-1">
-            {(item as any).euDataActCompliant && (
+            {item.euDataActCompliant && (
               <div className="px-2 py-1 bg-black/80 backdrop-blur-md border border-blue-500/60 rounded-md text-[10px] font-mono text-blue-400 font-semibold shadow-lg shadow-blue-500/20">
                 EU DATA ACT
               </div>

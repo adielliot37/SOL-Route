@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import bs58 from 'bs58'
-import { api, getBackendUrl, buildApiUrl } from '@/lib/api'
+import { api, buildApiUrl } from '@/lib/api'
 import { openSealedKeyB64 } from '@/lib/crypto'
 
 interface PurchaseHistory {

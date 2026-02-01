@@ -22,6 +22,11 @@ interface Listing {
   sellerWallet: string
   mime?: string
   size?: number
+  euDataActCompliant?: boolean
+  dataSource?: string
+  dataType?: string
+  anonymized?: boolean
+  dataAccessTerms?: string
 }
 
 interface Order {
@@ -366,7 +371,7 @@ export default function ListingDetail() {
                 {listing.description}
               </p>
             )}
-            {(listing as any).euDataActCompliant && (
+            {listing.euDataActCompliant && (
               <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
@@ -380,23 +385,23 @@ export default function ListingDetail() {
               </div>
             )}
             <div className="space-y-3 text-sm">
-              {(listing as any).dataSource && (
+              {listing.dataSource && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">Source:</span>
                   <span className="px-2 py-1 bg-muted rounded text-xs">
-                    {(listing as any).dataSource}
+                    {listing.dataSource}
                   </span>
                 </div>
               )}
-              {(listing as any).dataType && (
+              {listing.dataType && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">Type:</span>
                   <span className="px-2 py-1 bg-muted rounded text-xs">
-                    {(listing as any).dataType}
+                    {listing.dataType}
                   </span>
                 </div>
               )}
-              {(listing as any).anonymized && (
+              {listing.anonymized && (
                 <div className="flex items-center gap-2">
                   <span className="text-muted-foreground">Privacy:</span>
                   <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
@@ -404,10 +409,10 @@ export default function ListingDetail() {
                   </span>
                 </div>
               )}
-              {(listing as any).dataAccessTerms && (
+              {listing.dataAccessTerms && (
                 <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
                   <p className="text-xs font-semibold text-purple-300 mb-1">Data Access Terms:</p>
-                  <p className="text-xs text-purple-300/80">{(listing as any).dataAccessTerms}</p>
+                  <p className="text-xs text-purple-300/80">{listing.dataAccessTerms}</p>
                 </div>
               )}
               <div className="flex items-center gap-2">
