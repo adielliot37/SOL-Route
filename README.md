@@ -1,29 +1,30 @@
-# Sol Route
+# Data Market
 
-A decentralized marketplace for encrypted digital files. Files are stored on Storacha (IPFS), payments via Solana blockchain, encryption keys managed with AWS KMS.
+Marketplace for selling datasets. People can list data from smart devices, IoT sensors, connected cars, etc. and sell access to it. Data stored on Storacha, payments on Solana, compliant with EU Data Act.
 
 ## How It Works
 
 ### Sellers
 
-1. Upload a file with name, description, and price
-2. File encrypted with AES-256-GCM, uploaded to Storacha
-3. Encryption key wrapped with AWS KMS, stored in database
-4. Listing appears on marketplace
+1. Upload dataset (CSV, JSON, Parquet, etc.) with metadata
+2. Set price, add data source info, mark if anonymized
+3. Dataset encrypted and stored on Storacha
+4. Encryption key wrapped with AWS KMS
+5. Listing goes live, can be withdrawn anytime
 
 ### Buyers
 
-1. Browse listings, connect Solana wallet
-2. Purchase creates password-protected keypair
-3. Send SOL (transaction includes order ID in memo)
-4. After payment verified, receive decryption key
-5. Download and decrypt file
+1. Browse datasets, connect wallet
+2. Purchase requires consent acceptance (EU Data Act)
+3. Send SOL payment with order ID in memo
+4. After payment verified, get decryption key
+5. Download and decrypt dataset
 
 ## Technical Details
 
 ### Encryption Flow (Seller Side)
 
-When a seller uploads a file:
+When a seller uploads a dataset:
 
 **Step 1: Generate Content Key**
 ```
@@ -53,12 +54,15 @@ wrappedKey = KMS.encrypt(
 
 **Step 4: Store**
 ```
-Storacha: encrypted file → returns CID
+Storacha: encrypted dataset → returns CID
 MongoDB: {
   cid: storachaCID,
   wrappedKey: base64(wrappedKey),
   kmsKeyId: KeyId,
-  filename, size, mime
+  filename, size, mime,
+  dataSource, dataType, anonymized,
+  euDataActCompliant: true,
+  ownershipProof, consentLog
 }
 ```
 
@@ -200,12 +204,12 @@ contentKey = sodium.crypto_box_open_easy(
 // Returns 32-byte content key
 ```
 
-**Step 3: Decrypt File**
+**Step 3: Decrypt Dataset**
 
 ```
-// Fetch encrypted file from server
-encryptedFile = fetch('/listings/' + id + '/file')
-encrypted = base64decode(encryptedFile)
+// Fetch encrypted dataset from server
+encryptedDataset = fetch('/listings/' + id + '/file')
+encrypted = base64decode(encryptedDataset)
 
 // Parse encrypted structure
 iv = encrypted.slice(0, 12)
@@ -236,6 +240,15 @@ plaintext = crypto.subtle.decrypt(
 blob = new Blob([plaintext], { type: originalMimeType })
 downloadFile(blob, originalFilename)
 ```
+
+## EU Data Act Compliance
+
+- Data ownership: Ownership proof stored with each listing
+- Consent required: Buyers must accept consent before purchase
+- Withdrawal rights: Sellers can withdraw datasets anytime
+- Access revocation: Sellers can revoke buyer access
+- Audit trails: All consent and access actions logged
+- Data access terms: Terms displayed and must be accepted
 
 ## Security Properties
 
@@ -339,7 +352,7 @@ npm run dev
 ### AWS KMS
 
 ```bash
-aws kms create-key --description "Sol Route Master Key"
+aws kms create-key --description "Data Market Master Key"
 aws kms enable-key-rotation --key-id $KEY_ID
 ```
 
@@ -365,7 +378,7 @@ aws kms enable-key-rotation --key-id $KEY_ID
 - Solana Web3.js
 
 **Cryptography**
-- AES-256-GCM (file encryption)
+- AES-256-GCM (dataset encryption)
 - X25519 (ECDH key exchange)
 - XSalsa20-Poly1305 (authenticated encryption for key delivery)
 - PBKDF2 (password derivation)
@@ -378,18 +391,23 @@ GET  /listings
 GET  /listings/:id
 GET  /listings/:id/file
 POST /listings/create
+POST /listings/withdraw/:id
 POST /purchase/init
 POST /delivery/verify-and-deliver
+POST /delivery/revoke-access
 GET  /purchase/check/:listingId/:wallet
 ```
 
 ## Development Notes
 
 - Use Solana devnet for testing
-- Files on Storacha are permanent
-- Encrypted files are public but useless without key
+- Datasets on Storacha are permanent
+- Encrypted datasets are public but useless without key
 - Payment verified via Solana memo field
 - Session expires after 1 hour
+- Withdrawn datasets filtered from listings
+- Max dataset size: 50MB
+- Supported formats: CSV, JSON, Parquet, Excel, TSV, compressed archives
 
 ## License
 
