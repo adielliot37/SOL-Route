@@ -127,10 +127,8 @@ async function start() {
   // Request timeout
   app.use(timeoutHandler);
 
-  // Body parsing with size limits
-  // Note: File uploads use larger limit in listings route
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // Health check endpoint (before rate limiting)
   app.get('/health', (req, res) => {

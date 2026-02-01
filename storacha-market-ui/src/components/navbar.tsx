@@ -22,10 +22,10 @@ export default function Navbar() {
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold tracking-tighter text-white group-hover:text-purple-300 transition-colors">
-              SOL ROUTE
+              DATA MARKET
             </span>
             <span className="text-[10px] text-purple-400/60 font-mono tracking-widest -mt-1">
-              ONCHAIN MARKETPLACE
+              DECENTRALIZED DATA
             </span>
           </div>
         </Link>
@@ -35,7 +35,7 @@ export default function Navbar() {
             href="/create"
             className="text-sm font-medium text-purple-300/80 hover:text-purple-300 transition-colors relative group"
           >
-            <span className="relative z-10">LIST ITEM</span>
+            <span className="relative z-10">LIST DATA</span>
             <div className="absolute inset-0 bg-purple-500/0 group-hover:bg-purple-500/10 rounded transition-all -m-2 p-2" />
           </Link>
           <Link

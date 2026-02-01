@@ -64,10 +64,10 @@ router.post('/init', strictLimiter, async (req, res) => {
     }
     
     const listing = await Listing.findById(listingId);
-    if (!listing) return res.status(404).json({ error: 'listing not found' });
+    if (!listing) return res.status(404).json({ error: 'dataset listing not found' });
 
     if (listing.sellerWallet === buyerWallet) {
-      return res.status(400).json({ error: 'Cannot purchase your own listing' });
+      return res.status(400).json({ error: 'Cannot purchase your own dataset listing' });
     }
     
     // Check if already purchased
@@ -77,7 +77,7 @@ router.post('/init', strictLimiter, async (req, res) => {
       status: 'DELIVERED'
     });
     if (existingOrder) {
-      return res.status(400).json({ error: 'You have already purchased this listing' });
+      return res.status(400).json({ error: 'You have already purchased this dataset' });
     }
 
     const orderId = uuidv4();

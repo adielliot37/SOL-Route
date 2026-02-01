@@ -112,8 +112,8 @@ router.get('/:id/file', async (req, res) => {
 
 router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
   try {
-    logger.info({ sellerWallet: req.body.sellerWallet }, 'Creating listing...');
-    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports } = req.body;
+    logger.info({ sellerWallet: req.body.sellerWallet }, 'Creating dataset listing...');
+    const { sellerId, sellerWallet, filename, name, description, preview, mime, base64File, priceLamports, dataSource, dataType, anonymized, recordCount, timeRange, geographicScope } = req.body;
     if (!sellerWallet || !base64File || !filename || !name || !description || !priceLamports) {
       return res.status(400).json({ error: 'missing required fields: sellerWallet, filename, name, description, base64File, priceLamports' });
     }
@@ -184,6 +184,15 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
       mime: mime || 'application/octet-stream',
       size: fileBuf.length,
       priceLamports,
+      dataSource: dataSource || undefined,
+      dataType: dataType || undefined,
+      anonymized: anonymized === true || anonymized === 'true',
+      recordCount: recordCount ? parseInt(recordCount) : undefined,
+      timeRange: timeRange ? {
+        start: timeRange.start ? new Date(timeRange.start) : undefined,
+        end: timeRange.end ? new Date(timeRange.end) : undefined
+      } : undefined,
+      geographicScope: geographicScope || undefined,
       metadata
     });
 
@@ -191,7 +200,7 @@ router.post('/create', uploadLimiter, fileUploadParser, async (req, res) => {
     const wrapped = await wrapKeyWithKms(aesKey);
     await KeyVault.create({ listingId: listing._id, ...wrapped });
 
-    logger.info({ listingId: listing._id, cid }, 'Listing created successfully');
+    logger.info({ listingId: listing._id, cid }, 'Dataset listing created successfully');
     return res.json({ listingId: listing._id, cid, preview: generatedPreview, metadata });
   } catch (e: any) {
     logger.error({ error: e.message, stack: e.stack }, 'Error creating listing');

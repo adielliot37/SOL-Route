@@ -277,7 +277,7 @@ export default function AccountPage() {
       a.download = purchase.filename || delivery.filename || 'download'
       a.click()
 
-      showToast('File downloaded successfully!', 'success')
+      showToast('Dataset downloaded successfully!', 'success')
     } catch (error) {
       const err = error as Error
       showToast(`Failed to download: ${err.message}`, 'error')

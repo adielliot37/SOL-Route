@@ -50,7 +50,7 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
     }
 
     const listing = await Listing.findById(order.listingId);
-    if (!listing) return res.status(404).json({ error: 'listing missing' });
+    if (!listing) return res.status(404).json({ error: 'dataset listing missing' });
 
     const check = await verifyPaymentToWithMemo(
       order.payment!.toWallet!,

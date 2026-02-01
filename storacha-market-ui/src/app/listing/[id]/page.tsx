@@ -155,7 +155,7 @@ export default function ListingDetail() {
       const signature = await sendTransaction(transaction, connection)
       await connection.confirmTransaction(signature, 'confirmed')
 
-      showToast(`Payment sent! Transaction: ${signature.substring(0, 8)}... Now click "Verify & Deliver" to get your file.`, 'success')
+      showToast(`Payment sent! Transaction: ${signature.substring(0, 8)}... Now click "Verify & Deliver" to get your dataset.`, 'success')
       
       // Auto-verify after a short delay
       setTimeout(() => {
@@ -184,7 +184,7 @@ export default function ListingDetail() {
       const r = await api.post('/delivery/verify-and-deliver', { orderId: order.orderId })
       if (r.data.ok) {
         setDelivery(r.data)
-        showToast('Payment verified! You can now decrypt and download your file.', 'success')
+        showToast('Payment verified! You can now decrypt and download your dataset.', 'success')
       } else {
         showToast('Payment not found yet. Please wait a moment and try again.', 'warning')
       }
@@ -288,7 +288,7 @@ export default function ListingDetail() {
       a.download = delivery.filename || 'decrypted-file'
       a.click()
 
-      showToast('File decrypted and downloaded successfully!', 'success')
+      showToast('Dataset decrypted and downloaded successfully!', 'success')
     } catch (error) {
       const err = error as Error
       if (err.message?.includes('Invalid password')) {
@@ -297,7 +297,7 @@ export default function ListingDetail() {
         setPasswordAction('decrypt')
         setShowPasswordDialog(true)
       } else {
-        showToast(`Failed to decrypt and download file: ${err.message}`, 'error')
+        showToast(`Failed to decrypt and download dataset: ${err.message}`, 'error')
       }
     } finally {
       setLoading(false)
@@ -314,7 +314,7 @@ export default function ListingDetail() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
-            <p className="mt-4 text-muted-foreground">Loading listing...</p>
+            <p className="mt-4 text-muted-foreground">Loading dataset...</p>
           </div>
         </div>
       </main>
@@ -367,8 +367,32 @@ export default function ListingDetail() {
               </p>
             )}
             <div className="space-y-3 text-sm">
+              {(listing as any).dataSource && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Source:</span>
+                  <span className="px-2 py-1 bg-muted rounded text-xs">
+                    {(listing as any).dataSource}
+                  </span>
+                </div>
+              )}
+              {(listing as any).dataType && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="px-2 py-1 bg-muted rounded text-xs">
+                    {(listing as any).dataType}
+                  </span>
+                </div>
+              )}
+              {(listing as any).anonymized && (
+                <div className="flex items-center gap-2">
+                  <span className="text-muted-foreground">Privacy:</span>
+                  <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
+                    ✓ Anonymized
+                  </span>
+                </div>
+              )}
               <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">File Type:</span>
+                <span className="text-muted-foreground">Format:</span>
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ backgroundColor: detectFileType(listing.mime, listing.filename).bgColor }}>
                   <span className="text-2xl">{detectFileType(listing.mime, listing.filename).icon}</span>
                   <span className="font-medium" style={{ color: detectFileType(listing.mime, listing.filename).color }}>
@@ -420,10 +444,10 @@ export default function ListingDetail() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <p className="text-purple-300 font-mono text-sm">
-                      THIS IS YOUR LISTING
+                      THIS IS YOUR DATASET
                     </p>
                     <p className="text-purple-400/60 text-xs mt-1">
-                      You cannot purchase your own item
+                      You cannot purchase your own listing
                     </p>
                   </div>
                 ) : (
@@ -498,7 +522,7 @@ export default function ListingDetail() {
                     <h3 className="font-semibold text-green-600 dark:text-green-400">Payment Verified!</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Your payment has been confirmed. You can now decrypt and download your file.
+                    Your payment has been confirmed. You can now decrypt and download your dataset.
                   </p>
                 </div>
                 <Button
@@ -507,7 +531,7 @@ export default function ListingDetail() {
                   className="w-full h-12 text-base font-semibold"
                   size="lg"
                 >
-                  {loading ? 'Decrypting...' : 'Decrypt & Download'}
+                  {loading ? 'Decrypting...' : 'Decrypt & Download Dataset'}
                 </Button>
               </div>
             )}

@@ -16,7 +16,11 @@ export default function CreatePage() {
   const [name, setName] = useState<string>('')
   const [description, setDescription] = useState<string>('')
   const [preview, setPreview] = useState<string>('')
-  const [price, setPrice] = useState<string>('0.01') // SOL
+  const [price, setPrice] = useState<string>('0.01')
+  const [dataSource, setDataSource] = useState<string>('')
+  const [dataType, setDataType] = useState<string>('')
+  const [anonymized, setAnonymized] = useState<boolean>(false)
+  const [recordCount, setRecordCount] = useState<string>('')
   const [loading, setLoading] = useState(false)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -88,9 +92,13 @@ export default function CreatePage() {
         preview: preview || undefined,
         mime: file.type || 'application/octet-stream',
         base64File,
-        priceLamports
+        priceLamports,
+        dataSource: dataSource || undefined,
+        dataType: dataType || undefined,
+        anonymized: anonymized,
+        recordCount: recordCount ? parseInt(recordCount) : undefined
       })
-      showToast(`Listing created successfully! CID: ${r.data.cid.substring(0, 8)}...`, 'success')
+      showToast(`Dataset listed successfully! CID: ${r.data.cid.substring(0, 8)}...`, 'success')
 
       // Reset form after short delay
       setTimeout(() => {
@@ -99,13 +107,16 @@ export default function CreatePage() {
         setDescription('')
         setPreview('')
         setPrice('0.01')
-        // Reset file input
+        setDataSource('')
+        setDataType('')
+        setAnonymized(false)
+        setRecordCount('')
         const fileInput = document.getElementById('file') as HTMLInputElement
         if (fileInput) fileInput.value = ''
       }, 1500)
     } catch (error) {
       const err = error as Error
-      showToast(`Failed to create listing: ${err.message}`, 'error')
+      showToast(`Failed to list dataset: ${err.message}`, 'error')
     } finally {
       setLoading(false)
     }
@@ -113,16 +124,16 @@ export default function CreatePage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <h1 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Create Listing</h1>
+      <h1 className="text-3xl font-bold mb-8 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">List Your Data</h1>
 
       <div className="space-y-6">
         <div>
           <Label htmlFor="name" className="text-sm font-semibold text-purple-300">
-            Name <span className="text-red-400">*</span>
+            Dataset Name <span className="text-red-400">*</span>
           </Label>
           <Input
             id="name"
-            placeholder="Enter listing name"
+            placeholder="e.g., Smartwatch Health Data Q1 2024"
             value={name}
             onChange={e => setName(e.target.value)}
             className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
@@ -135,12 +146,68 @@ export default function CreatePage() {
           </Label>
           <Textarea
             id="description"
-            placeholder="Describe your file"
+            placeholder="Describe your dataset: what data it contains, where it came from, potential use cases..."
             value={description}
             onChange={e => setDescription(e.target.value)}
             className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
             rows={4}
           />
+        </div>
+
+        <div>
+          <Label htmlFor="dataSource" className="text-sm font-semibold text-purple-300">
+            Data Source (optional)
+          </Label>
+          <Input
+            id="dataSource"
+            placeholder="e.g., Smartwatch, Connected Car, IoT Sensor"
+            value={dataSource}
+            onChange={e => setDataSource(e.target.value)}
+            className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+          />
+          <p className="text-xs text-purple-400/60 mt-2">
+            Where this data came from
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor="dataType" className="text-sm font-semibold text-purple-300">
+            Data Type (optional)
+          </Label>
+          <Input
+            id="dataType"
+            placeholder="e.g., Health Metrics, Location Data, Sensor Readings"
+            value={dataType}
+            onChange={e => setDataType(e.target.value)}
+            className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="recordCount" className="text-sm font-semibold text-purple-300">
+            Record Count (optional)
+          </Label>
+          <Input
+            id="recordCount"
+            type="number"
+            placeholder="e.g., 10000"
+            value={recordCount}
+            onChange={e => setRecordCount(e.target.value)}
+            className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="anonymized"
+            checked={anonymized}
+            onChange={e => setAnonymized(e.target.checked)}
+            className="w-4 h-4 rounded border-purple-500/30 bg-black/40 text-purple-600 focus:ring-purple-500"
+          />
+          <Label htmlFor="anonymized" className="text-sm font-semibold text-purple-300 cursor-pointer">
+            Data is anonymized
+          </Label>
         </div>
 
         <div>
@@ -154,14 +221,11 @@ export default function CreatePage() {
             onChange={e => setPreview(e.target.value)}
             className="mt-2 bg-black/40 border-purple-500/30 text-white placeholder:text-gray-500"
           />
-          <p className="text-xs text-purple-400/60 mt-2">
-            Add a preview image or video URL for your listing
-          </p>
         </div>
 
         <div>
           <Label htmlFor="file" className="text-sm font-semibold text-purple-300">
-            File <span className="text-red-400">*</span>
+            Dataset File <span className="text-red-400">*</span>
           </Label>
           <Input
             id="file"
@@ -177,9 +241,9 @@ export default function CreatePage() {
               </p>
             )}
             <div className="text-xs text-purple-400/60 space-y-0.5">
-              <p className="font-semibold text-purple-300/80">File Requirements:</p>
-              <p>• Max file size: {formatFileSize(MAX_FILE_SIZE)}</p>
-              <p>• Supported types: {getSupportedFileTypesDescription()}</p>
+              <p className="font-semibold text-purple-300/80">Dataset Requirements:</p>
+              <p>• Max size: {formatFileSize(MAX_FILE_SIZE)}</p>
+              <p>• Formats: {getSupportedFileTypesDescription()}</p>
             </div>
           </div>
         </div>
@@ -227,12 +291,12 @@ export default function CreatePage() {
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Creating Listing...
+              Listing Dataset...
             </span>
           ) : !publicKey ? (
-            'Connect Wallet to Create'
+            'Connect Wallet to List'
           ) : (
-            'Create Listing'
+            'List Dataset'
           )}
         </Button>
       </div>

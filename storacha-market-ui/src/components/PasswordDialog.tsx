@@ -104,7 +104,7 @@ export default function PasswordDialog({
             <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <p className="text-xs text-yellow-600 dark:text-yellow-400">
                 <strong>Important:</strong> Remember this password. It encrypts your private keys locally. 
-                If you forget it, you won&apos;t be able to access purchased files.
+                If you forget it, you won&apos;t be able to access purchased datasets.
               </p>
             </div>
           )}

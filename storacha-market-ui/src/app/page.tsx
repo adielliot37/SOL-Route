@@ -18,37 +18,37 @@ export default function Page() {
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 border border-purple-500/20 rounded-full mb-8">
             <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
             <span className="text-sm font-mono text-purple-300 tracking-wider">
-              ENCRYPTED • ANONYMOUS • UNSTOPPABLE
+              DECENTRALIZED • YOUR DATA • YOUR VALUE
             </span>
           </div>
 
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-6 tracking-tighter">
-            <span className="block text-white mb-2">THE NEW</span>
+            <span className="block text-white mb-2">MONETIZE</span>
             <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent animate-gradient bg-[length:200%_auto]">
-              DIGITAL UNDERGROUND
+              YOUR DATA
             </span>
           </h1>
 
           <p className="text-xl md:text-2xl text-purple-300/80 mb-4 font-light">
-            Where your digital assets find their true value.
+            Own your data. Sell access. Build the future.
           </p>
           <p className="text-lg text-purple-400/60 max-w-2xl mx-auto mb-12 font-mono">
-            Trade encrypted content. Monetize anything. Stay anonymous.<br/>
-            <span className="text-purple-500/80">Built onchain. Secured forever.</span>
+            List your smartwatch data, IoT sensors, connected car logs, and more.<br/>
+            <span className="text-purple-500/80">Decentralized storage. Automatic payments. Your ownership.</span>
           </p>
 
           <div className="grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             <div className="text-center">
               <div className="text-3xl md:text-4xl font-bold text-white mb-1">{data?.length || 0}</div>
-              <div className="text-sm text-purple-400/60 font-mono">LISTINGS</div>
+              <div className="text-sm text-purple-400/60 font-mono">DATASETS</div>
             </div>
             <div className="text-center border-x border-purple-500/10">
               <div className="text-3xl md:text-4xl font-bold text-white mb-1">100%</div>
-              <div className="text-sm text-purple-400/60 font-mono">ENCRYPTED</div>
+              <div className="text-sm text-purple-400/60 font-mono">DECENTRALIZED</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl md:text-4xl font-bold text-white mb-1">∞</div>
-              <div className="text-sm text-purple-400/60 font-mono">UPTIME</div>
+              <div className="text-3xl md:text-4xl font-bold text-white mb-1">€270B</div>
+              <div className="text-sm text-purple-400/60 font-mono">OPPORTUNITY</div>
             </div>
           </div>
         </div>
@@ -57,8 +57,8 @@ export default function Page() {
       <div className="px-4 pb-20">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">ACTIVE LISTINGS</h2>
-            <p className="text-purple-400/60 font-mono text-sm">Browse the marketplace</p>
+            <h2 className="text-2xl font-bold text-white mb-1">AVAILABLE DATASETS</h2>
+            <p className="text-purple-400/60 font-mono text-sm">Browse data listings</p>
           </div>
         </div>
 
@@ -82,9 +82,9 @@ export default function Page() {
                 <svg className="w-24 h-24 text-purple-500/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                 </svg>
-                <h3 className="text-xl font-bold text-white mb-2">NO LISTINGS YET</h3>
+                <h3 className="text-xl font-bold text-white mb-2">NO DATASETS YET</h3>
                 <p className="text-purple-400/60 max-w-sm font-mono text-sm">
-                  Be the first seller on SOL Route
+                  Be the first to list your data
                 </p>
               </div>
             )}
