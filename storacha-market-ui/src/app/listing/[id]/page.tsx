@@ -366,6 +366,19 @@ export default function ListingDetail() {
                 {listing.description}
               </p>
             )}
+            {(listing as any).euDataActCompliant && (
+              <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-1">
+                  <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm font-semibold text-blue-400">EU Data Act Compliant</span>
+                </div>
+                <p className="text-xs text-blue-300/80">
+                  This dataset complies with EU Data Act regulations. You own your data and control access.
+                </p>
+              </div>
+            )}
             <div className="space-y-3 text-sm">
               {(listing as any).dataSource && (
                 <div className="flex items-center gap-2">
@@ -389,6 +402,12 @@ export default function ListingDetail() {
                   <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded text-xs">
                     ✓ Anonymized
                   </span>
+                </div>
+              )}
+              {(listing as any).dataAccessTerms && (
+                <div className="mt-4 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                  <p className="text-xs font-semibold text-purple-300 mb-1">Data Access Terms:</p>
+                  <p className="text-xs text-purple-300/80">{(listing as any).dataAccessTerms}</p>
                 </div>
               )}
               <div className="flex items-center gap-2">

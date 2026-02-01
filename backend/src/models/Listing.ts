@@ -23,6 +23,20 @@ const ListingSchema = new Schema({
   },
   geographicScope: String,
 
+  euDataActCompliant: { type: Boolean, default: true, index: true },
+  ownershipProof: { type: String, index: true },
+  dataAccessTerms: String,
+  consentRequired: { type: Boolean, default: true },
+  consentLog: [{
+    timestamp: { type: Date, default: Date.now },
+    action: String,
+    wallet: String,
+    ipAddress: String
+  }],
+  withdrawalEnabled: { type: Boolean, default: true },
+  withdrawnAt: Date,
+  withdrawnReason: String,
+
   metadata: {
     width: Number,
     height: Number,
@@ -45,5 +59,7 @@ const ListingSchema = new Schema({
 ListingSchema.index({ sellerWallet: 1, createdAt: -1 });
 ListingSchema.index({ createdAt: -1 });
 ListingSchema.index({ priceLamports: 1, createdAt: -1 });
+ListingSchema.index({ euDataActCompliant: 1, withdrawnAt: 1 });
+ListingSchema.index({ withdrawalEnabled: 1, withdrawnAt: 1 });
 
 export default model('Listing', ListingSchema);

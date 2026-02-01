@@ -23,6 +23,9 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
 
     if (order.status === 'DELIVERED') {
       const listing = await Listing.findById(order.listingId);
+      if (listing?.withdrawnAt) {
+        return res.status(403).json({ error: 'This dataset has been withdrawn by the owner' });
+      }
       return res.json({ 
         ok: true, 
         sealedKeyB64: order.sealedKeyB64, 
@@ -33,12 +36,13 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
       });
     }
     
-    // Prevent race condition - check if already being processed
     if (order.status === 'PAID' && order.sealedKeyB64) {
-      // Already delivered but status not updated, fix it
       order.status = 'DELIVERED';
       await order.save();
       const listing = await Listing.findById(order.listingId);
+      if (listing?.withdrawnAt) {
+        return res.status(403).json({ error: 'This dataset has been withdrawn by the owner' });
+      }
       return res.json({ 
         ok: true, 
         sealedKeyB64: order.sealedKeyB64, 
@@ -52,6 +56,10 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
     const listing = await Listing.findById(order.listingId);
     if (!listing) return res.status(404).json({ error: 'dataset listing missing' });
 
+    if (listing.withdrawnAt) {
+      return res.status(403).json({ error: 'This dataset has been withdrawn by the owner' });
+    }
+
     const check = await verifyPaymentToWithMemo(
       order.payment!.toWallet!,
       order.payment!.expectedLamports!,
@@ -59,7 +67,6 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
     );
     if (!check.ok) return res.status(202).json({ ok: false, status: 'AWAITING_PAYMENT' });
 
-    // Check if transaction was already used (prevent replay)
     if (check.signature) {
       const existingOrder = await Order.findOne({ 
         'payment.txSig': check.signature,
@@ -78,7 +85,6 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
     const vault = await KeyVault.findOne({ listingId: listing._id });
     if (!vault) return res.status(500).json({ error: 'key vault missing' });
 
-    // Unwrap the AES key using KMS
     const aesKeyRaw = await unwrapKeyWithKms({
       encKeyB64: vault.encKeyB64,
       ivB64: vault.ivB64,
@@ -86,16 +92,19 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
       keyVersion: vault.keyVersion
     });
 
-    // Seal key to buyer with ephemeral key exchange
     const sealed = await sealKeyToBuyer(aesKeyRaw, order.buyerEncPubKeyB64!);
 
     order.sealedKeyB64 = sealed.sealedKeyB64;
     order.ephemeralPubB64 = sealed.ephemeralPubB64;
     order.status = 'DELIVERED';
     order.deliveredAt = new Date();
+    order.auditLog.push({
+      timestamp: new Date(),
+      action: 'DATA_DELIVERED',
+      details: `Dataset access granted to buyer ${order.buyerWallet}`
+    });
     await order.save();
 
-    // Update user purchase history (create user if doesn't exist)
     if (order.buyerWallet) {
       let buyer = await User.findOne({ wallet: order.buyerWallet });
       if (!buyer) {
@@ -127,6 +136,56 @@ router.post('/verify-and-deliver', strictLimiter, async (req, res) => {
       mime: listing.mime 
     });
   } catch (e: any) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/revoke-access', strictLimiter, async (req, res) => {
+  try {
+    const { orderId, sellerWallet, reason } = req.body;
+    
+    if (!orderId || !sellerWallet) {
+      return res.status(400).json({ error: 'orderId and sellerWallet are required' });
+    }
+
+    const order = await Order.findOne({ orderId }).populate('listingId');
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const listing = order.listingId as any;
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    if (listing.sellerWallet !== sellerWallet) {
+      return res.status(403).json({ error: 'Only the dataset owner can revoke access' });
+    }
+
+    if (order.accessRevoked) {
+      return res.status(400).json({ error: 'Access already revoked' });
+    }
+
+    order.accessRevoked = true;
+    order.accessRevokedAt = new Date();
+    order.accessRevokedReason = reason || 'Revoked by data owner under EU Data Act rights';
+    order.auditLog.push({
+      timestamp: new Date(),
+      action: 'ACCESS_REVOKED',
+      details: `Access revoked by owner ${sellerWallet}. Reason: ${reason || 'Not specified'}`
+    });
+
+    await order.save();
+
+    logger.info({ orderId, sellerWallet }, 'Data access revoked by owner');
+
+    return res.json({ 
+      success: true, 
+      message: 'Access revoked successfully',
+      revokedAt: order.accessRevokedAt 
+    });
+  } catch (e: any) {
+    logger.error({ error: e.message, orderId: req.body.orderId }, 'Error revoking access');
     return res.status(500).json({ error: e.message });
   }
 });

@@ -14,12 +14,20 @@ const UserSchema = new Schema({
     reviewed: { type: Boolean, default: false } // Track if buyer reviewed this purchase
   }],
 
-  // Seller rating aggregation (as a seller)
   sellerRating: {
     avgRating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0, min: 0 },
     totalSales: { type: Number, default: 0, min: 0 }
   },
+
+  dataConsents: [{
+    listingId: { type: Schema.Types.ObjectId, ref: 'Listing' },
+    consentedAt: { type: Date, default: Date.now },
+    consentType: { type: String, enum: ['SHARING', 'MONETIZATION', 'ANONYMIZATION'] },
+    termsAccepted: Boolean,
+    ipAddress: String,
+    revokedAt: Date
+  }],
 
   createdAt: { type: Date, default: Date.now }
 });

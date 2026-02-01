@@ -49,14 +49,12 @@ router.get('/check/:listingId/:wallet', async (req, res) => {
 
 router.post('/init', strictLimiter, async (req, res) => {
   try {
-    const { listingId, buyerEncPubKeyB64, buyerWallet } = req.body;
+    const { listingId, buyerEncPubKeyB64, buyerWallet, consentAccepted, dataAccessTermsAccepted } = req.body;
     
-    // Validate inputs
     if (!listingId || !buyerEncPubKeyB64 || !buyerWallet) {
       return res.status(400).json({ error: 'Missing required fields: listingId, buyerEncPubKeyB64, buyerWallet' });
     }
     
-    // Validate base64 format
     try {
       Buffer.from(buyerEncPubKeyB64, 'base64');
     } catch (e) {
@@ -66,32 +64,63 @@ router.post('/init', strictLimiter, async (req, res) => {
     const listing = await Listing.findById(listingId);
     if (!listing) return res.status(404).json({ error: 'dataset listing not found' });
 
+    if (listing.withdrawnAt) {
+      return res.status(400).json({ error: 'This dataset has been withdrawn by the owner' });
+    }
+
     if (listing.sellerWallet === buyerWallet) {
       return res.status(400).json({ error: 'Cannot purchase your own dataset listing' });
     }
     
-    // Check if already purchased
+    if (listing.consentRequired && !consentAccepted) {
+      return res.status(400).json({ error: 'Consent is required to purchase this dataset under EU Data Act regulations' });
+    }
+
+    if (!dataAccessTermsAccepted) {
+      return res.status(400).json({ error: 'Data access terms must be accepted' });
+    }
+    
     const existingOrder = await Order.findOne({
       listingId,
       buyerWallet,
-      status: 'DELIVERED'
+      status: 'DELIVERED',
+      accessRevoked: { $ne: true }
     });
     if (existingOrder) {
       return res.status(400).json({ error: 'You have already purchased this dataset' });
     }
 
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const orderId = uuidv4();
     const order = await Order.create({
       listingId,
       orderId,
       buyerEncPubKeyB64,
       buyerWallet,
+      consentAccepted: consentAccepted || false,
+      consentAcceptedAt: consentAccepted ? new Date() : undefined,
+      dataAccessTermsAccepted: dataAccessTermsAccepted || false,
       payment: {
         expectedLamports: listing.priceLamports,
         toWallet: listing.sellerWallet,
         memo: orderId
-      }
+      },
+      auditLog: [{
+        timestamp: new Date(),
+        action: 'ORDER_INITIATED',
+        details: `Buyer ${buyerWallet} initiated purchase with consent: ${consentAccepted}`
+      }]
     });
+
+    if (listing.consentLog) {
+      listing.consentLog.push({
+        timestamp: new Date(),
+        action: 'PURCHASE_INITIATED',
+        wallet: buyerWallet,
+        ipAddress: ipAddress
+      });
+      await listing.save();
+    }
 
     return res.json({
       orderId,

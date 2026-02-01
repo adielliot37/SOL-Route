@@ -96,7 +96,8 @@ export default function CreatePage() {
         dataSource: dataSource || undefined,
         dataType: dataType || undefined,
         anonymized: anonymized,
-        recordCount: recordCount ? parseInt(recordCount) : undefined
+        recordCount: recordCount ? parseInt(recordCount) : undefined,
+        dataAccessTerms: 'By purchasing this dataset, you agree to use it in compliance with EU Data Act and GDPR regulations. You may not redistribute or share this data without explicit permission.'
       })
       showToast(`Dataset listed successfully! CID: ${r.data.cid.substring(0, 8)}...`, 'success')
 

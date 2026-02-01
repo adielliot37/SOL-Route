@@ -13,9 +13,20 @@ const OrderSchema = new Schema({
     txSig: { type: String },           // once verified
     confirmedAt: Date
   },
-  sealedKeyB64: String,       // encrypted-to-buyer AES key (after payment)
-  ephemeralPubB64: String,    // ephemeral public key for forward secrecy
+  sealedKeyB64: String,
+  ephemeralPubB64: String,
   deliveredAt: Date,
+  consentAccepted: { type: Boolean, default: false },
+  consentAcceptedAt: Date,
+  dataAccessTermsAccepted: Boolean,
+  accessRevoked: { type: Boolean, default: false },
+  accessRevokedAt: Date,
+  accessRevokedReason: String,
+  auditLog: [{
+    timestamp: { type: Date, default: Date.now },
+    action: String,
+    details: String
+  }],
   createdAt: { type: Date, default: Date.now, index: true }
 });
 
@@ -23,5 +34,6 @@ const OrderSchema = new Schema({
 OrderSchema.index({ buyerWallet: 1, status: 1 });
 OrderSchema.index({ listingId: 1, buyerWallet: 1, status: 1 });
 OrderSchema.index({ 'payment.txSig': 1 });
+OrderSchema.index({ consentAccepted: 1, accessRevoked: 1 });
 
 export default model('Order', OrderSchema);
